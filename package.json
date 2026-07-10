@@ -1,0 +1,100 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "sidecar-display",
+  "title": "Sidecar Display",
+  "description": "Connect your iPad over Sidecar and force it to extend instead of mirror, using BetterDisplay.",
+  "icon": "extension-icon.png",
+  "author": "chiptoma",
+  "categories": ["System"],
+  "license": "MIT",
+  "platforms": ["macOS"],
+  "commands": [
+    {
+      "name": "connect-sidecar",
+      "title": "Connect Sidecar",
+      "subtitle": "Sidecar Display",
+      "description": "Connect the iPad and force the configured display mode.",
+      "mode": "no-view"
+    },
+    {
+      "name": "disconnect-sidecar",
+      "title": "Disconnect Sidecar",
+      "subtitle": "Sidecar Display",
+      "description": "Disconnect the iPad.",
+      "mode": "no-view"
+    },
+    {
+      "name": "toggle-sidecar",
+      "title": "Toggle Sidecar",
+      "subtitle": "Sidecar Display",
+      "description": "Connect the iPad if detached, disconnect it if attached.",
+      "mode": "no-view"
+    }
+  ],
+  "preferences": [
+    {
+      "name": "displayMode",
+      "type": "dropdown",
+      "required": false,
+      "title": "Display Mode",
+      "description": "How the iPad should sit in the arrangement once connected.",
+      "default": "extend",
+      "data": [
+        { "title": "Extend", "value": "extend" },
+        { "title": "Mirror", "value": "mirror" }
+      ]
+    },
+    {
+      "name": "ipadName",
+      "type": "textfield",
+      "required": false,
+      "title": "iPad Name",
+      "description": "Leave empty to auto-detect. Required only if you have more than one Sidecar device.",
+      "placeholder": "Auto-detect"
+    },
+    {
+      "name": "reconnectVirtualScreens",
+      "type": "checkbox",
+      "required": false,
+      "title": "Mitigation",
+      "label": "Reconnect virtual screens if the display mode will not settle",
+      "description": "Last resort when the iPad refuses to leave the mirror set.",
+      "default": true
+    },
+    {
+      "name": "betterDisplayCliPath",
+      "type": "textfield",
+      "required": false,
+      "title": "BetterDisplay CLI",
+      "description": "Path to the betterdisplaycli binary.",
+      "default": "/opt/homebrew/bin/betterdisplaycli"
+    },
+    {
+      "name": "settleTimeoutSeconds",
+      "type": "textfield",
+      "required": false,
+      "title": "Settle Timeout",
+      "description": "Seconds to wait for a display change to take effect. Clamped to 2-60.",
+      "default": "6"
+    }
+  ],
+  "dependencies": {
+    "@raycast/api": "^1.100.2"
+  },
+  "devDependencies": {
+    "@raycast/eslint-config": "^2.0.4",
+    "@types/node": "22.13.10",
+    "@types/react": "19.0.10",
+    "eslint": "^9.22.0",
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.2"
+  },
+  "scripts": {
+    "build": "ray build",
+    "dev": "ray develop",
+    "lint": "ray lint",
+    "fix-lint": "ray lint --fix",
+    "test:hardware": "tsc src/lib/betterdisplay.ts src/lib/sidecar.ts --outDir .test-build --module commonjs --target ES2022 --strict --skipLibCheck && node test/e2e.js && node test/roundtrip.js",
+    "publish": "npx @raycast/api@latest publish"
+  }
+}
