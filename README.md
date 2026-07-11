@@ -17,7 +17,7 @@ No AppleScript, no System Settings window, no UI-tree scraping.
 - `betterdisplaycli` on disk — `brew install --cask betterdisplay` provides it
 - Raycast
 
-Developed and tested against **BetterDisplay 4.3.5** with Pro enabled. BetterDisplay documents display *connection management* as a Pro feature, which the virtual-screen mitigation relies on; the connect, disconnect, and mirror controls have not been verified on a non-Pro install.
+Developed and tested against **BetterDisplay 4.3.5** with Pro enabled. The connect, disconnect, and mirror controls have not been verified on a non-Pro install; if a command reports a failure on non-Pro BetterDisplay, that is the likely cause.
 
 ## Commands
 
@@ -35,7 +35,6 @@ Bind any of them to a hotkey in Raycast.
 | --- | --- | --- |
 | Display Mode | `Extend` | Where the iPad should end up: extending, or folded into the main display's mirror set. |
 | iPad Name | *(empty)* | Leave empty to auto-detect via `get --sidecarList`. Set it only if you have more than one Sidecar device. |
-| Mitigation | *on* | Reconnect virtual screens as a last resort when the display mode refuses to settle. |
 | BetterDisplay CLI | `/opt/homebrew/bin/betterdisplaycli` | Path to the binary. |
 | Settle Timeout | `6` | Seconds to wait for a display change to take effect. Clamped to 2–60. |
 
@@ -44,15 +43,21 @@ Bind any of them to a hotkey in Raycast.
 On connect, the extension:
 
 1. Reads the Sidecar link state and attaches the iPad only if it is detached.
-2. Polls until the iPad's display actually appears.
-3. Reads the iPad's mirror state. If it already matches the configured mode, it stops — nothing is written.
-4. Otherwise it asserts the mode: `--mirror=off` to extend, or folds the iPad into the current main display's mirror set to mirror.
-5. Polls until the change settles.
-6. Only if it never settles, and only when extending, it cycles each virtual screen off and on by UUID, re-asserts, and polls again.
+2. Waits for the iPad's display to become **stably present** — the same non-null mirror state read twice in a row. A flaky or phantom connection never passes this gate, so it never reaches a display write.
+3. If macOS has made the iPad the main display, it stops and reports — it will not change the mode of the main display.
+4. Reads the iPad's mirror state. If it already matches the configured mode, it stops — nothing is written.
+5. Otherwise it asserts the mode once: `--mirror=off` to extend, or folds the iPad into the current main display's mirror set to mirror, then polls until it settles.
 
-### The main display is never written
+If the mode does not settle, the extension reports it and stops. It does **not** cycle, disconnect, or otherwise touch any other display to force the issue.
 
-Mirroring is always applied with the **existing main display as the master** and the iPad as the target. The reverse direction promotes the iPad to mirror master, and macOS moves the main display — and every window — onto it. The extension never issues a `--main` write, and refuses to mirror when the iPad is itself main.
+### The main display is never written, and no display is ever cycled
+
+Two hard invariants:
+
+- The extension never issues a `--main` write and never disconnects or power-cycles any display. Its entire mutation surface is: connect/disconnect the Sidecar link, detach the iPad from a mirror set, and add the iPad to the main display's mirror set.
+- Mirroring always uses the **existing main display as the master** with the iPad as the target. The reverse direction promotes the iPad to master and macOS moves the main display — and every window — onto it. Both mode writes are refused outright when the iPad is itself the main display.
+
+An earlier version reconnected virtual screens as a "mitigation" when a mode would not settle. On a setup where a virtual screen *is* the main display, that disconnected the main display and scrambled every window. It has been removed entirely.
 
 ### Notes on the CLI
 
@@ -60,7 +65,8 @@ Behaviours worth knowing, established by testing rather than from the documentat
 
 - A rejected request exits **1** with `Failed.` on **stderr** and empty stdout. Reads treat that as "absent"; writes treat it as an error.
 - `set --sidecarConnected` is **not** idempotent. It fails when the link is already in the requested state, so state is read first.
-- Display changes apply asynchronously. A single read after a write races the change, so every write is followed by a poll.
+- `get --sidecarList` lists **paired** devices, present or not. A name in the list is not a promise the iPad is reachable, which is why the display-stability gate exists.
+- Display changes apply asynchronously. A single read after a write races the change, so every write is followed by a poll, and every write that could move windows is gated on a stable read first.
 
 ## Install
 
@@ -75,18 +81,23 @@ npm run dev
 
 ## Tests
 
+These are real behavioural tests, not mocks: they drive `betterdisplaycli` against live hardware.
+
 ```sh
-npm run test:hardware
+npm run test:safety     # no iPad needed, makes no display changes
+npm run test:hardware   # full suite; needs an iPad and a virtual screen
 ```
 
-These are real behavioural tests, not mocks: they drive `betterdisplaycli` against a live iPad and virtual screen, deliberately reproduce the mirroring bug, assert the extension heals it, and assert the main display never moves. They briefly mirror the iPad and disconnect and reconnect it, and they leave it connected and extending.
+`test:safety` is the regression guard for the incident where connecting an unreachable iPad cycled the main display. It asks the extension to settle a display that is not present and asserts it refuses before writing anything and leaves the main display untouched. It only needs BetterDisplay running.
 
-They require BetterDisplay running, an iPad paired for Sidecar, and at least one virtual screen. Override the binary path with `BD_CLI=/path/to/betterdisplaycli`.
+`test:hardware` also reproduces the mirroring case, asserts the extension heals it without moving the main display, and exercises the full connect/disconnect lifecycle. It briefly mirrors the iPad and disconnects and reconnects it. It requires BetterDisplay running, an iPad paired for Sidecar, and at least one virtual screen. Override the binary path with `BD_CLI=/path/to/betterdisplaycli`.
 
 ## Limitations
 
-- The extension acts only when you run one of its commands. Connecting the iPad from Control Center or the AirPlay menu will not trigger the mitigation. Reacting to those would need a background watcher on display-configuration changes, which this extension deliberately does not install.
+- The extension acts only when you run one of its commands. Connecting the iPad from Control Center or the AirPlay menu will not run the extend/mirror logic. Reacting to those would need a background watcher on display-configuration changes, which this extension deliberately does not install.
 - Auto-detection refuses to guess when more than one Sidecar device is present. Pin one in preferences.
+- macOS itself decides which display is main when Sidecar attaches, and can put main on the iPad. The extension will not override that (it never writes the main display); it reports it and leaves the arrangement to you.
+- If the display mode will not settle, the extension reports it rather than forcing it. Fix a stuck arrangement by hand in BetterDisplay or Displays settings.
 
 ## License
 

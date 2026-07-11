@@ -29,14 +29,12 @@ async function main() {
   expect("resolveIpadName auto-detects", ipad === devices[0].name, ipad);
   expect("resolveIpadName honours override and trims", (await sc.resolveIpadName(CLI, "  X  ")) === "X");
 
-  const config = { cliPath: CLI, ipadName: ipad, mode: "extend", reconnectVirtualScreens: true, settleTimeoutMs: 8000 };
+  const config = { cliPath: CLI, ipadName: ipad, mode: "extend", settleTimeoutMs: 8000 };
 
   const main = await bd.readMainDisplay(CLI);
   expect("readMainDisplay returns a device with a UUID", Boolean(main && main.uuid));
   const mainBefore = main.uuid;
-
-  const screens = await bd.listVirtualScreens(CLI);
-  expect("listVirtualScreens finds a virtual screen", screens.length >= 1);
+  expect("the iPad is not the main display at the start", main.name !== ipad, main.name);
 
   expect("readMirrorState of an absent display is null", (await bd.readMirrorState(CLI, "No Such")) === null);
   expect("isConnected reports the iPad is attached", (await sc.isConnected(config)) === true);
@@ -52,7 +50,6 @@ async function main() {
   const healed = await sc.ensureDisplayMode(config);
   expect("ensureDisplayMode(extend) healed it", healed.changed && healed.settled, JSON.stringify(healed));
   expect("iPad extends again", (await bd.readMirrorState(CLI, ipad)) === false);
-  expect("escalation was not needed", healed.escalated === false);
 
   const mainAfter = (await bd.readMainDisplay(CLI)).uuid;
   expect("main display never moved", mainAfter === mainBefore, `${mainBefore} -> ${mainAfter}`);

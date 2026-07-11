@@ -2,30 +2,29 @@
 // SIDECAR ORCHESTRATION
 // Connects an iPad over Sidecar and settles it into extend or mirror mode.
 // -----------------------------------------------------------------------------
-// Context: BetterDisplay applies display changes asynchronously, so every write
-//   is followed by a poll rather than a fixed sleep. A single sample races the
-//   change and reads a stale value.
+// Context: BetterDisplay applies display changes asynchronously, so a single
+//   read races the change. Reads that gate a write must be confirmed stable
+//   (two consecutive equal, non-null samples) before anything is written.
 // Scope: Used by the connect, disconnect, and toggle commands.
-// WARN: The main display is never written. Mirroring folds the iPad into the
-//   existing master's set; the reverse direction would relocate the user's
-//   windows onto the iPad.
+// WARN: The main display is never written, and no display is ever disconnected
+//   or cycled. The only topology writes are detaching the iPad from a mirror
+//   set (extend) or folding the iPad into the current main's set (mirror), and
+//   both are refused when the iPad itself is the main display.
 // =============================================================================
 
 import {
   BetterDisplayError,
   isSidecarConnected,
   listSidecarDevices,
-  listVirtualScreens,
   readMainDisplay,
   readMirrorState,
-  reconnectVirtualScreen,
   setSidecarConnected,
   startMirroring,
   stopMirroring,
 } from "./betterdisplay";
 
 const POLL_INTERVAL_MS = 400;
-const VIRTUAL_SCREEN_PAUSE = 1_500;
+const STABILITY_INTERVAL_MS = 500;
 
 /** How the iPad should sit in the display arrangement once connected. */
 export type DisplayMode = "extend" | "mirror";
@@ -35,15 +34,14 @@ export interface SidecarConfig {
   readonly cliPath: string;
   readonly ipadName: string;
   readonly mode: DisplayMode;
-  readonly reconnectVirtualScreens: boolean;
   readonly settleTimeoutMs: number;
 }
 
-/** What `ensureDisplayMode` had to do to reach the requested mode. */
+/** What the display-mode step did, or why it safely declined to act. */
 export interface ModeOutcome {
   readonly changed: boolean;
   readonly settled: boolean;
-  readonly escalated: boolean;
+  readonly skippedReason?: string;
 }
 
 // -----------------------------------------------------------
@@ -71,11 +69,56 @@ async function pollUntil(probe: () => Promise<boolean>, timeoutMs: number): Prom
 }
 
 /**
+ * Waits until the iPad's mirror state reads the same non-null value twice.
+ *
+ * @param config - Resolved configuration.
+ * @returns The settled mirror state, or null if it never stabilised in time.
+ *
+ * NOTE: This is the gate that keeps a flaky or phantom Sidecar connection from
+ *   ever reaching a topology write. A display that keeps appearing and
+ *   vanishing never yields two consecutive equal reads, so it returns null.
+ */
+async function awaitStableMirrorState(config: SidecarConfig): Promise<boolean | null> {
+  const deadline = Date.now() + config.settleTimeoutMs;
+  let previous = await readMirrorState(config.cliPath, config.ipadName);
+
+  for (;;) {
+    await new Promise((resolve) => setTimeout(resolve, STABILITY_INTERVAL_MS));
+    const current = await readMirrorState(config.cliPath, config.ipadName);
+    if (previous !== null && current !== null && previous === current) {
+      return current;
+    }
+    if (Date.now() >= deadline) {
+      return null;
+    }
+    previous = current;
+  }
+}
+
+/**
+ * Reports whether the iPad is currently the main display.
+ *
+ * @param config - Resolved configuration.
+ * @returns True when macOS treats the iPad as the main display.
+ *
+ * NOTE: macOS may promote a freshly connected Sidecar display to main on its
+ *   own. When that happens the extension declines to touch display modes, since
+ *   it must never write the main display or its status.
+ */
+async function ipadIsMainDisplay(config: SidecarConfig): Promise<boolean> {
+  const main = await readMainDisplay(config.cliPath);
+  return main !== null && main.name === config.ipadName;
+}
+
+/**
  * Resolves which iPad to act on, preferring an explicit override.
  *
  * @param cliPath  - Path to the CLI binary.
  * @param override - Name from preferences; empty or blank means auto-detect.
  * @returns The Sidecar device name to pass as a specifier.
+ *
+ * WARN: `get --sidecarList` lists paired devices whether or not they are
+ *   reachable, so a returned name is not a promise that the iPad can connect.
  */
 export async function resolveIpadName(cliPath: string, override: string): Promise<string> {
   const pinned = override.trim();
@@ -101,12 +144,13 @@ export async function resolveIpadName(cliPath: string, override: string): Promis
 // -----------------------------------------------------------
 
 /**
- * Folds the iPad into the current master's mirror set.
+ * Folds the iPad into the current main display's mirror set.
  *
  * @param config - Resolved configuration.
  *
- * WARN: Refuses when the iPad is itself main, since mirroring onto it would
- *   move every window across.
+ * WARN: The current main display stays the master; the iPad is only ever the
+ *   target. Mirroring the other way promotes the iPad to master and moves the
+ *   user's windows.
  */
 async function applyMirror(config: SidecarConfig): Promise<void> {
   const main = await readMainDisplay(config.cliPath);
@@ -120,41 +164,37 @@ async function applyMirror(config: SidecarConfig): Promise<void> {
 }
 
 /**
- * Cycles every virtual screen, then re-asserts extend mode.
+ * Brings the iPad into the requested display mode, or safely declines.
  *
  * @param config - Resolved configuration.
- * @returns True once the iPad reads as extended.
+ * @returns Whether a change was made and whether it settled, or the reason the
+ *   step was skipped.
  *
- * NOTE: Last-resort path. Each virtual screen is cycled by UUID so a second
- *   virtual screen is never disturbed.
- */
-async function escalateToVirtualScreenReconnect(config: SidecarConfig): Promise<boolean> {
-  for (const screen of await listVirtualScreens(config.cliPath)) {
-    await reconnectVirtualScreen(config.cliPath, screen.uuid, VIRTUAL_SCREEN_PAUSE);
-  }
-  await stopMirroring(config.cliPath, config.ipadName);
-  return pollUntil(
-    async () => (await readMirrorState(config.cliPath, config.ipadName)) === false,
-    config.settleTimeoutMs,
-  );
-}
-
-/**
- * Brings the iPad into the requested display mode, escalating only if needed.
- *
- * @param config - Resolved configuration.
- * @returns Whether a change was made, whether it settled, and whether the
- *   virtual-screen reconnect was needed.
+ * NOTE: Every write is gated on a stable, present iPad display that is not the
+ *   main display. If the iPad is not stably present, or is main, no display is
+ *   written at all. There is no escalation path and nothing is ever cycled or
+ *   disconnected.
  */
 export async function ensureDisplayMode(config: SidecarConfig): Promise<ModeOutcome> {
   const wantMirror = config.mode === "mirror";
-  const current = await readMirrorState(config.cliPath, config.ipadName);
 
+  const current = await awaitStableMirrorState(config);
   if (current === null) {
-    throw new BetterDisplayError(`BetterDisplay cannot see a display named “${config.ipadName}”.`);
+    throw new BetterDisplayError(
+      `The iPad display “${config.ipadName}” is not stably present; made no display changes.`,
+    );
   }
+
+  if (await ipadIsMainDisplay(config)) {
+    return {
+      changed: false,
+      settled: false,
+      skippedReason: "the iPad is the main display, so its mode was left untouched",
+    };
+  }
+
   if (current === wantMirror) {
-    return { changed: false, settled: true, escalated: false };
+    return { changed: false, settled: true };
   }
 
   if (wantMirror) {
@@ -168,11 +208,7 @@ export async function ensureDisplayMode(config: SidecarConfig): Promise<ModeOutc
     config.settleTimeoutMs,
   );
 
-  if (settled || wantMirror || !config.reconnectVirtualScreens) {
-    return { changed: true, settled, escalated: false };
-  }
-
-  return { changed: true, settled: await escalateToVirtualScreenReconnect(config), escalated: true };
+  return { changed: true, settled };
 }
 
 // -----------------------------------------------------------
@@ -180,13 +216,14 @@ export async function ensureDisplayMode(config: SidecarConfig): Promise<ModeOutc
 // -----------------------------------------------------------
 
 /**
- * Attaches the iPad, waits for its display to appear, then settles the mode.
+ * Attaches the iPad, confirms its display is stable, then settles the mode.
  *
  * @param config - Resolved configuration.
  * @returns The outcome of the display-mode step.
  *
  * NOTE: Idempotent. The link write is skipped when already connected, because
- *   BetterDisplay rejects it in that case; the mode is still re-asserted.
+ *   BetterDisplay rejects it in that case. If the link never comes up, or the
+ *   display never stabilises, this throws before any display write happens.
  */
 export async function connectSidecar(config: SidecarConfig): Promise<ModeOutcome> {
   if (!(await isSidecarConnected(config.cliPath, config.ipadName))) {
@@ -199,14 +236,6 @@ export async function connectSidecar(config: SidecarConfig): Promise<ModeOutcome
     if (!linked) {
       throw new BetterDisplayError("Sidecar did not connect. Is the iPad awake and nearby?");
     }
-  }
-
-  const visible = await pollUntil(
-    async () => (await readMirrorState(config.cliPath, config.ipadName)) !== null,
-    config.settleTimeoutMs,
-  );
-  if (!visible) {
-    throw new BetterDisplayError("The iPad connected but no display appeared.");
   }
 
   return ensureDisplayMode(config);

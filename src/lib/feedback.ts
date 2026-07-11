@@ -19,14 +19,14 @@ import type { ModeOutcome, SidecarConfig } from "./sidecar";
 export function describeOutcome(config: SidecarConfig, outcome: ModeOutcome): string {
   const mode = config.mode === "mirror" ? "mirroring" : "extending";
 
+  if (outcome.skippedReason !== undefined) {
+    return `Sidecar connected — ${outcome.skippedReason}`;
+  }
   if (!outcome.settled) {
     return `Sidecar connected, but it is not ${mode}`;
   }
   if (!outcome.changed) {
     return `Sidecar connected, already ${mode}`;
-  }
-  if (outcome.escalated) {
-    return `Sidecar connected, ${mode} after virtual screen reconnect`;
   }
   return `Sidecar connected, switched to ${mode}`;
 }

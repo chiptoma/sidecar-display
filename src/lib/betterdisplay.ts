@@ -18,7 +18,6 @@ const execFileAsync = promisify(execFile);
 const CLI_TIMEOUT_MS = 15_000;
 const FAILURE_MARKER = "Failed.";
 const GROUP_TYPE = "DisplayGroup";
-const VIRTUAL_TYPE = "VirtualScreen";
 
 /** A display, virtual screen, or group as reported by `get --identifiers`. */
 export interface Device {
@@ -271,31 +270,4 @@ export async function startMirroring(cliPath: string, masterUuid: string, target
 export async function readMainDisplay(cliPath: string): Promise<Device | null> {
   const raw = await readCli(cliPath, ["get", "--displayWithMainStatus", "--identifiers"]);
   return toDevices(raw)[0] ?? null;
-}
-
-/**
- * Lists every BetterDisplay virtual screen.
- *
- * @param cliPath - Path to the CLI binary.
- * @returns Virtual screens, possibly empty.
- */
-export async function listVirtualScreens(cliPath: string): Promise<readonly Device[]> {
-  const raw = await readCli(cliPath, ["get", `--type=${VIRTUAL_TYPE}`, "--identifiers"]);
-  return toDevices(raw);
-}
-
-/**
- * Disconnects then reconnects a single virtual screen.
- *
- * @param cliPath - Path to the CLI binary.
- * @param uuid    - UUID of the virtual screen to cycle.
- * @param pauseMs - Delay between the disconnect and the reconnect.
- *
- * NOTE: Targeted by UUID so additional virtual screens are never disturbed.
- *   Always ends with `--connected=on`, even if the disconnect silently no-ops.
- */
-export async function reconnectVirtualScreen(cliPath: string, uuid: string, pauseMs: number): Promise<void> {
-  await writeCli(cliPath, ["set", `--UUID=${uuid}`, "--connected=off"]);
-  await new Promise((resolve) => setTimeout(resolve, pauseMs));
-  await writeCli(cliPath, ["set", `--UUID=${uuid}`, "--connected=on"]);
 }

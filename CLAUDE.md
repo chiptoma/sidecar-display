@@ -24,18 +24,32 @@ forces extend (or mirror) without touching the main display.
 - **Never write `--main`.** Changing the main display relocates the user's
   windows. Mirroring must always use the existing main display as the master
   and the iPad as the target; the reverse direction promotes the iPad to master.
-- **Never trust a single read after a write.** BetterDisplay applies display
-  changes asynchronously. Poll until the state settles or the timeout expires.
+- **Never disconnect or power-cycle a display.** No `--connected=` writes. An
+  earlier "reconnect virtual screens" mitigation cycled the main display (which
+  on this user's setup *is* a virtual screen) and scrambled every window. It was
+  removed. The entire mutation surface is: the Sidecar link, `--mirror=off` on
+  the iPad, and `--mirror=on` with the current main as master.
+- **Gate every window-moving write on a stable read.** `awaitStableMirrorState`
+  requires two consecutive equal, non-null samples. A flaky or phantom Sidecar
+  connection never passes, so it never reaches a write. `get --sidecarList`
+  lists paired-but-maybe-absent devices, so a resolved name is not proof of
+  reachability — the gate is what makes the absent-device case safe.
+- **If the iPad is the main display, do nothing to its mode and report it.**
+- **Never trust a single read after a write.** Poll until the state settles or
+  the timeout expires.
 - **`set --sidecarConnected` is not idempotent.** It fails when the link is
   already in the requested state. Read the state before writing.
-- Target virtual screens by UUID, never `--type=VirtualScreen`, so that a second
-  virtual screen is never disturbed.
 
 ## Verification
 
 `npm run lint` and `npm run build` must both be clean.
 
-`npm run test:hardware` is the only test that proves anything: it drives the
-real CLI against a real iPad, reproduces the mirroring bug, and asserts the
-extension heals it without moving the main display. It requires BetterDisplay
-running, an iPad paired for Sidecar, and at least one virtual screen.
+`npm run test:safety` needs no iPad and makes no display changes: it is the
+regression guard proving an absent/unreachable device produces zero topology
+writes and never touches the main display. Run it after any change to the
+orchestration.
+
+`npm run test:hardware` additionally reproduces the mirroring case, asserts the
+extension heals it without moving the main display, and exercises the full
+connect/disconnect lifecycle. It requires BetterDisplay running, an iPad paired
+for Sidecar, and at least one virtual screen.

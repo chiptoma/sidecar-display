@@ -46,7 +46,6 @@ export async function loadConfig(): Promise<SidecarConfig> {
     cliPath,
     ipadName: await resolveIpadName(cliPath, prefs.ipadName ?? ""),
     mode: prefs.displayMode,
-    reconnectVirtualScreens: prefs.reconnectVirtualScreens,
     settleTimeoutMs: parseTimeoutMs(prefs.settleTimeoutSeconds),
   };
 }
