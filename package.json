@@ -35,9 +35,8 @@
       "name": "sidecar-status",
       "title": "Sidecar Status",
       "subtitle": "Sidecar Display",
-      "description": "Menu-bar item showing the iPad name and connection status, with connect, disconnect, and extend/mirror actions.",
-      "mode": "menu-bar",
-      "interval": "1m"
+      "description": "Menu-bar item showing the iPad name and connection status, with connect, disconnect, and extend/mirror actions. It does not auto-refresh (to stay friendly with menu-bar managers like Bartender); enable Background Refresh on this command if you want live status.",
+      "mode": "menu-bar"
     }
   ],
   "preferences": [

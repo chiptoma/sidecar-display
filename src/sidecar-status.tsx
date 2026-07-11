@@ -76,16 +76,15 @@ export default function Command(): React.JSX.Element {
   }, []);
 
   const connected = model?.connected ?? false;
-  const title = model?.selected || "Sidecar";
+  const device = model?.selected || "Sidecar";
+  // Icon-only, constant width, so menu-bar managers like Bartender do not see a
+  // changing item width. State is conveyed by the icon and the tooltip, and the
+  // device name lives inside the dropdown rather than in the bar.
   const icon = connected ? Icon.Monitor : Icon.MinusCircle;
+  const tooltip = connected ? `${device} — connected` : `${device} — disconnected`;
 
   return (
-    <MenuBarExtra
-      icon={icon}
-      title={connected ? title : undefined}
-      tooltip="Sidecar Display"
-      isLoading={model === null}
-    >
+    <MenuBarExtra icon={icon} tooltip={tooltip} isLoading={model === null}>
       {model !== null && model.devices.length === 0 && <MenuBarExtra.Item title="No Sidecar devices found" />}
 
       {model !== null && model.selected !== "" && (

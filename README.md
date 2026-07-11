@@ -125,6 +125,7 @@ npm run test:hardware    # full suite; needs an iPad and a virtual screen
 - macOS itself decides which display is main when Sidecar attaches, and can put main on the iPad. The extension will not override that (it never writes the main display); it reports it and leaves the arrangement to you.
 - If the display mode will not settle, the extension reports it rather than forcing it. Fix a stuck arrangement by hand in BetterDisplay or Displays settings.
 - The menu bar and background commands are macOS-only (Raycast does not offer menu-bar commands on Windows).
+- The **Sidecar Status** menu-bar item does not auto-refresh and shows a constant-width icon, to stay friendly with menu-bar managers like Bartender or Ice. It updates when you open it. If you want live status in the bar, enable Background Refresh on the command in its Raycast settings (this reintroduces a periodic refresh that such managers will see).
 
 ## License
 
