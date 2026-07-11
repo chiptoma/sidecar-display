@@ -5,7 +5,7 @@
 // Context: BetterDisplay applies display changes asynchronously, so a single
 //   read races the change. Reads that gate a write must be confirmed stable
 //   (two consecutive equal, non-null samples) before anything is written.
-// Scope: Used by the connect, disconnect, and toggle commands.
+// Scope: Used by the connect, disconnect, auto-reconnect, and menu-bar commands.
 // WARN: The main display is never written, and no display is ever disconnected
 //   or cycled. The only topology writes are detaching the iPad from a mirror
 //   set (extend) or folding the iPad into the current main's set (mirror), and

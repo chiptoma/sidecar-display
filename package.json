@@ -24,13 +24,6 @@
       "mode": "no-view"
     },
     {
-      "name": "toggle-sidecar",
-      "title": "Toggle Sidecar",
-      "subtitle": "Sidecar Display",
-      "description": "Connect the iPad if detached, disconnect it if attached.",
-      "mode": "no-view"
-    },
-    {
       "name": "auto-reconnect",
       "title": "Auto-Reconnect Sidecar",
       "subtitle": "Sidecar Display",
@@ -73,8 +66,40 @@
       "type": "textfield",
       "required": false,
       "title": "Fast Reconnect Attempts",
-      "description": "How many quick reconnect attempts (with growing backoff) before slowing to an occasional retry. It never gives up entirely, and waking the Mac always retries immediately.",
-      "default": "8"
+      "description": "Quick reconnect attempts after a drop before slowing to the heartbeat. Waking the Mac restarts the fast phase. Never gives up entirely.",
+      "default": "3"
+    },
+    {
+      "name": "backoffBaseSeconds",
+      "type": "textfield",
+      "required": false,
+      "title": "Backoff Base (seconds)",
+      "description": "Initial wait between fast reconnect attempts; it doubles each try up to the cap. Note: the background command only runs about once a minute, so values under ~60s effectively mean 'every tick'.",
+      "default": "15"
+    },
+    {
+      "name": "backoffCapSeconds",
+      "type": "textfield",
+      "required": false,
+      "title": "Backoff Cap (seconds)",
+      "description": "Longest wait the doubling backoff reaches during the fast phase.",
+      "default": "60"
+    },
+    {
+      "name": "slowRetrySeconds",
+      "type": "textfield",
+      "required": false,
+      "title": "Slow Retry (seconds)",
+      "description": "How often to retry once the fast attempts are spent and the iPad is still absent.",
+      "default": "300"
+    },
+    {
+      "name": "wakeThresholdSeconds",
+      "type": "textfield",
+      "required": false,
+      "title": "Wake Threshold (seconds)",
+      "description": "A gap this long between background ticks is treated as the Mac having slept, so the next tick reconnects immediately and restarts the fast phase.",
+      "default": "120"
     },
     {
       "name": "betterDisplayCliPath",

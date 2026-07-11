@@ -26,16 +26,20 @@ export interface KeepAliveState {
   readonly lastTickAtMs: number;
 }
 
-/** Everything a single decision needs. */
-export interface KeepAliveInputs {
-  readonly isConnected: boolean;
-  readonly nowMs: number;
-  readonly state: KeepAliveState;
+/** The configurable timing knobs for keep-alive. */
+export interface KeepAliveTuning {
   readonly fastAttempts: number;
   readonly backoffBaseMs: number;
   readonly backoffCapMs: number;
   readonly dormantRetryMs: number;
   readonly wakeGapMs: number;
+}
+
+/** Everything a single decision needs: the tuning plus the live snapshot. */
+export interface KeepAliveInputs extends KeepAliveTuning {
+  readonly isConnected: boolean;
+  readonly nowMs: number;
+  readonly state: KeepAliveState;
 }
 
 /** The action to take now, plus the state to persist afterwards. */

@@ -55,7 +55,7 @@ export async function saveKeepAliveState(state: KeepAliveState): Promise<void> {
  * @param intent - What the user just asked for.
  *
  * NOTE: Re-arms (or stops) keep-alive by resetting the retry budget, so this is
- *   called from every manual connect, disconnect, and toggle.
+ *   called from every manual connect and disconnect, and from the menu bar.
  */
 export async function recordIntent(intent: LinkIntent): Promise<void> {
   await saveKeepAliveState({ intent, failedAttempts: 0, lastAttemptAtMs: 0, lastTickAtMs: 0 });

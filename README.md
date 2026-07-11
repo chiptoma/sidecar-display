@@ -25,11 +25,10 @@ Developed and tested against **BetterDisplay 4.3.5** with Pro enabled. The conne
 | --- | --- |
 | **Connect Sidecar** | Attaches the iPad, waits for its display, then applies the configured mode. Idempotent. |
 | **Disconnect Sidecar** | Detaches the iPad. Idempotent. |
-| **Toggle Sidecar** | Reads the current state, then connects or disconnects accordingly. |
 | **Auto-Reconnect Sidecar** | Background command that restores a dropped link (see below). Run it by hand to reconnect now. |
 | **Sidecar Status** | Menu-bar item showing the device name and connection state, with connect / disconnect / extend / mirror actions and a device picker. |
 
-Bind any of the first three to a hotkey in Raycast.
+Bind Connect and Disconnect to hotkeys in Raycast, or drive everything from the menu bar.
 
 ### Auto-reconnect (keep-alive)
 
@@ -37,7 +36,7 @@ Enable **background refresh** on the *Auto-Reconnect Sidecar* command (in its Ra
 
 It is deliberately conservative, so it never nags, but it never abandons a link you want either:
 
-- It reconnects **only** when you asked for the iPad to be connected (via any connect/toggle command or the menu bar) and the link then dropped **on its own**.
+- It reconnects **only** when you asked for the iPad to be connected (via the connect command or the menu bar) and the link then dropped **on its own**.
 - A **deliberate disconnect** stops it — it will not fight you.
 - On a drop it makes a burst of quick attempts with growing backoff (the *Fast Reconnect Attempts* preference), then slows to an occasional heartbeat retry. It does **not** give up permanently.
 - **Waking the Mac re-arms it immediately.** A long gap between background ticks means the Mac was asleep, so the next tick after you open the lid reconnects at once rather than waiting out a backoff.
@@ -50,9 +49,15 @@ There is no on-wake event on macOS for extensions, so reconnection happens on th
 | --- | --- | --- |
 | Display Mode | `Extend` | Where the iPad should end up: extending, or folded into the main display's mirror set. |
 | iPad Name | *(empty)* | Leave empty to auto-detect via `get --sidecarList`, or to use whatever you last picked in the menu bar. Set it only to pin one when you have more than one Sidecar device. |
-| Fast Reconnect Attempts | `8` | How many quick reconnect attempts (with growing backoff) before slowing to an occasional heartbeat retry. It never gives up entirely; waking the Mac always retries at once. |
+| Fast Reconnect Attempts | `3` | Quick reconnect attempts after a drop before slowing to the heartbeat. Waking the Mac restarts the fast phase. Never gives up entirely. |
+| Backoff Base (seconds) | `15` | Initial wait between fast attempts; doubles each try up to the cap. |
+| Backoff Cap (seconds) | `60` | Longest wait the doubling backoff reaches during the fast phase. |
+| Slow Retry (seconds) | `300` | How often to retry once the fast attempts are spent and the iPad is still absent. |
+| Wake Threshold (seconds) | `120` | A gap this long between background ticks counts as the Mac having slept, so the next tick reconnects immediately. |
 | BetterDisplay CLI | `/opt/homebrew/bin/betterdisplaycli` | Path to the binary. |
 | Settle Timeout | `6` | Seconds to wait for a display change to take effect. Clamped to 2–60. |
+
+Every auto-reconnect timing knob is configurable. Note that Raycast runs background commands only about **once a minute**, so backoff values under ~60 seconds effectively mean "every tick" — the sub-minute knobs mostly shape the tail of the fast phase.
 
 With more than one paired iPad, pick the one to act on from the **Sidecar Status** menu bar; the choice is remembered and used by every command. An explicit *iPad Name* preference overrides that.
 

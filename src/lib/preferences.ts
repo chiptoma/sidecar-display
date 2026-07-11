@@ -12,6 +12,7 @@ import { getPreferenceValues } from "@raycast/api";
 import { resolveIpadName } from "./sidecar";
 import { loadSelectedDevice } from "./state";
 
+import type { KeepAliveTuning } from "./keepalive";
 import type { DisplayMode, SidecarConfig } from "./sidecar";
 
 /** The tuning shared by every command, before a device is chosen. */
@@ -37,6 +38,59 @@ function parseTimeoutMs(value: string): number {
     return DEFAULT_TIMEOUT_SECONDS * 1_000;
   }
   return Math.min(Math.max(seconds, MIN_TIMEOUT_SECONDS), MAX_TIMEOUT_SECONDS) * 1_000;
+}
+
+/**
+ * Parses a clamped integer preference, falling back when unset or invalid.
+ *
+ * @param value - Raw preference text.
+ * @param fallback - Value to use when the text is empty or non-numeric.
+ * @param min - Lower bound.
+ * @param max - Upper bound.
+ * @returns The clamped integer.
+ */
+function parseIntClamped(value: string | undefined, fallback: number, min: number, max: number): number {
+  const parsed = Number.parseInt((value ?? "").trim(), 10);
+  if (!Number.isInteger(parsed)) {
+    return fallback;
+  }
+  return Math.min(Math.max(parsed, min), max);
+}
+
+/**
+ * Parses a seconds preference into clamped milliseconds.
+ *
+ * @param value - Raw preference text in seconds.
+ * @param fallbackSeconds - Value to use when the text is empty or non-numeric.
+ * @param minSeconds - Lower bound in seconds.
+ * @param maxSeconds - Upper bound in seconds.
+ * @returns The clamped duration in milliseconds.
+ */
+function parseSecondsMs(
+  value: string | undefined,
+  fallbackSeconds: number,
+  minSeconds: number,
+  maxSeconds: number,
+): number {
+  const parsed = Number.parseFloat((value ?? "").trim());
+  const seconds = Number.isFinite(parsed) ? parsed : fallbackSeconds;
+  return Math.min(Math.max(seconds, minSeconds), maxSeconds) * 1_000;
+}
+
+/**
+ * Reads the auto-reconnect timing knobs from preferences, clamped.
+ *
+ * @returns Fully resolved keep-alive tuning.
+ */
+export function readKeepAliveTuning(): KeepAliveTuning {
+  const prefs = getPreferenceValues<Preferences>();
+  return {
+    fastAttempts: parseIntClamped(prefs.fastReconnectAttempts, 3, 1, 100),
+    backoffBaseMs: parseSecondsMs(prefs.backoffBaseSeconds, 15, 1, 3_600),
+    backoffCapMs: parseSecondsMs(prefs.backoffCapSeconds, 60, 1, 3_600),
+    dormantRetryMs: parseSecondsMs(prefs.slowRetrySeconds, 300, 30, 86_400),
+    wakeGapMs: parseSecondsMs(prefs.wakeThresholdSeconds, 120, 30, 3_600),
+  };
 }
 
 /**
