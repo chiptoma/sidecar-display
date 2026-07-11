@@ -12,12 +12,21 @@ forces extend (or mirror) without touching the main display.
 - `src/lib/betterdisplay.ts` — the only module that shells out to the CLI.
   Reads tolerate rejection (`Failed.` on stderr, exit 1) and return `null`;
   writes throw. Nothing else in the codebase invokes the binary.
-- `src/lib/sidecar.ts` — orchestration. Pure Node, no `@raycast/api` import, so
-  it can be exercised by the hardware tests.
+- `src/lib/sidecar.ts` — display/link orchestration. Pure Node, no
+  `@raycast/api` import, so the hardware tests can exercise it.
+- `src/lib/keepalive.ts` — pure decision state machine for background
+  auto-reconnect. No I/O, so it is unit-tested headlessly (`test/keepalive.js`).
+- `src/lib/state.ts` — the only module that touches Raycast `LocalStorage`
+  (keep-alive intent + the menu-bar device selection).
 - `src/lib/preferences.ts` — maps Raycast's generated `Preferences` type into a
-  `SidecarConfig`. Never hand-declare the preference shape; it is generated from
-  `package.json` by `ray build` and would silently drift.
-- `src/*.ts` — one thin command entry point each. No logic.
+  `SidecarConfig` (`readTuning`/`buildConfig`/`loadConfig`). Never hand-declare
+  the preference shape; it is generated from `package.json` by `ray build`.
+- `src/lib/feedback.ts` — HUD/toast text from a `ModeOutcome`.
+- `src/*.ts(x)` — one thin command entry point each. No logic:
+  connect/disconnect/toggle (no-view), `auto-reconnect` (no-view, `interval`),
+  and `sidecar-status` (menu-bar). Purity split: only lib modules WITHOUT an
+  `@raycast/api` import (`betterdisplay`, `sidecar`, `keepalive`) are compiled by
+  `test:build`; keep testable logic there.
 
 ## Invariants
 
@@ -39,6 +48,10 @@ forces extend (or mirror) without touching the main display.
   the timeout expires.
 - **`set --sidecarConnected` is not idempotent.** It fails when the link is
   already in the requested state. Read the state before writing.
+- **Auto-reconnect only chases a link that dropped on its own.** Every manual
+  connect/disconnect/toggle records intent via `recordIntent`; keep-alive must
+  respect a deliberate disconnect and give up after the attempt budget. There is
+  no on-wake or display-change event — it is interval-polled only.
 
 ## Verification
 

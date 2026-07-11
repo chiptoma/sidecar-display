@@ -29,6 +29,22 @@
       "subtitle": "Sidecar Display",
       "description": "Connect the iPad if detached, disconnect it if attached.",
       "mode": "no-view"
+    },
+    {
+      "name": "auto-reconnect",
+      "title": "Auto-Reconnect Sidecar",
+      "subtitle": "Sidecar Display",
+      "description": "Restore the Sidecar link after it drops (e.g. waking from sleep). Enable background refresh on this command to keep the iPad connected; run it manually to reconnect now.",
+      "mode": "no-view",
+      "interval": "1m"
+    },
+    {
+      "name": "sidecar-status",
+      "title": "Sidecar Status",
+      "subtitle": "Sidecar Display",
+      "description": "Menu-bar item showing the iPad name and connection status, with connect, disconnect, and extend/mirror actions.",
+      "mode": "menu-bar",
+      "interval": "1m"
     }
   ],
   "preferences": [
@@ -51,6 +67,14 @@
       "title": "iPad Name",
       "description": "Leave empty to auto-detect. Required only if you have more than one Sidecar device.",
       "placeholder": "Auto-detect"
+    },
+    {
+      "name": "keepAliveMaxAttempts",
+      "type": "textfield",
+      "required": false,
+      "title": "Auto-Reconnect Attempts",
+      "description": "How many times auto-reconnect retries a dropped link before giving up until the next manual connect. Backoff grows between attempts.",
+      "default": "8"
     },
     {
       "name": "betterDisplayCliPath",
@@ -85,9 +109,10 @@
     "dev": "ray develop",
     "lint": "ray lint",
     "fix-lint": "ray lint --fix",
-    "test:build": "tsc src/lib/betterdisplay.ts src/lib/sidecar.ts --outDir .test-build --module commonjs --target ES2022 --strict --skipLibCheck",
-    "test:safety": "npm run test:build && node test/safety.js",
-    "test:hardware": "npm run test:build && node test/safety.js && node test/e2e.js && node test/roundtrip.js",
+    "test:build": "tsc src/lib/betterdisplay.ts src/lib/sidecar.ts src/lib/keepalive.ts --outDir .test-build --module commonjs --target ES2022 --strict --skipLibCheck",
+    "test:unit": "npm run test:build && node test/keepalive.js",
+    "test:safety": "npm run test:build && node test/keepalive.js && node test/safety.js",
+    "test:hardware": "npm run test:build && node test/keepalive.js && node test/safety.js && node test/e2e.js && node test/roundtrip.js",
     "publish": "npx @raycast/api@latest publish"
   }
 }

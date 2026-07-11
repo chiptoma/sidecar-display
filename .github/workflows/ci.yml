@@ -1,0 +1,42 @@
+---
+# =============================================================================
+# CI
+# Lint, type-check/build, and run the hardware-free unit tests on every push.
+# -----------------------------------------------------------------------------
+# NOTE: The safety and hardware suites need BetterDisplay (and an iPad) and
+#   cannot run on hosted runners, so CI covers lint, build, and the pure
+#   keep-alive logic only. Run `npm run test:hardware` locally before release.
+# =============================================================================
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npx ray lint
+
+      - name: Build
+        run: npx ray build
+
+      - name: Unit tests
+        run: npm run test:unit

@@ -26,17 +26,34 @@ Developed and tested against **BetterDisplay 4.3.5** with Pro enabled. The conne
 | **Connect Sidecar** | Attaches the iPad, waits for its display, then applies the configured mode. Idempotent. |
 | **Disconnect Sidecar** | Detaches the iPad. Idempotent. |
 | **Toggle Sidecar** | Reads the current state, then connects or disconnects accordingly. |
+| **Auto-Reconnect Sidecar** | Background command that restores a dropped link (see below). Run it by hand to reconnect now. |
+| **Sidecar Status** | Menu-bar item showing the device name and connection state, with connect / disconnect / extend / mirror actions and a device picker. |
 
-Bind any of them to a hotkey in Raycast.
+Bind any of the first three to a hotkey in Raycast.
+
+### Auto-reconnect (keep-alive)
+
+Enable **background refresh** on the *Auto-Reconnect Sidecar* command (in its Raycast command settings) and it will restore the link after it drops — for example when the Mac wakes from sleep or wifi hiccups.
+
+It is deliberately conservative, so it never nags:
+
+- It reconnects **only** when you asked for the iPad to be connected (via any connect/toggle command or the menu bar) and the link then dropped **on its own**.
+- A **deliberate disconnect** stops it — it will not fight you.
+- If the iPad stays unreachable, it retries a few times with growing backoff, then **gives up** until you connect manually again. The number of attempts is the *Auto-Reconnect Attempts* preference.
+
+There is no on-wake event on macOS for extensions, so reconnection happens on the next background tick — within roughly one interval (default one minute), not instantly. Background refresh is off until you enable it.
 
 ## Preferences
 
 | Preference | Default | Purpose |
 | --- | --- | --- |
 | Display Mode | `Extend` | Where the iPad should end up: extending, or folded into the main display's mirror set. |
-| iPad Name | *(empty)* | Leave empty to auto-detect via `get --sidecarList`. Set it only if you have more than one Sidecar device. |
+| iPad Name | *(empty)* | Leave empty to auto-detect via `get --sidecarList`, or to use whatever you last picked in the menu bar. Set it only to pin one when you have more than one Sidecar device. |
+| Auto-Reconnect Attempts | `8` | How many times auto-reconnect retries a dropped link before giving up until the next manual connect. |
 | BetterDisplay CLI | `/opt/homebrew/bin/betterdisplaycli` | Path to the binary. |
 | Settle Timeout | `6` | Seconds to wait for a display change to take effect. Clamped to 2–60. |
+
+With more than one paired iPad, pick the one to act on from the **Sidecar Status** menu bar; the choice is remembered and used by every command. An explicit *iPad Name* preference overrides that.
 
 ## How it works
 
@@ -84,20 +101,24 @@ npm run dev
 These are real behavioural tests, not mocks: they drive `betterdisplaycli` against live hardware.
 
 ```sh
-npm run test:safety     # no iPad needed, makes no display changes
-npm run test:hardware   # full suite; needs an iPad and a virtual screen
+npm run test:unit       # pure logic (keep-alive), no BetterDisplay needed
+npm run test:safety      # unit + absent-device safety; needs BetterDisplay, no iPad
+npm run test:hardware    # full suite; needs an iPad and a virtual screen
 ```
 
-`test:safety` is the regression guard for the incident where connecting an unreachable iPad cycled the main display. It asks the extension to settle a display that is not present and asserts it refuses before writing anything and leaves the main display untouched. It only needs BetterDisplay running.
+`test:unit` proves the keep-alive state machine only reconnects a link that dropped on its own, backs off, gives up, and re-arms — no hardware at all.
+
+`test:safety` adds the regression guard for the incident where connecting an unreachable iPad cycled the main display. It asks the extension to settle a display that is not present and asserts it refuses before writing anything and leaves the main display untouched. It only needs BetterDisplay running.
 
 `test:hardware` also reproduces the mirroring case, asserts the extension heals it without moving the main display, and exercises the full connect/disconnect lifecycle. It briefly mirrors the iPad and disconnects and reconnects it. It requires BetterDisplay running, an iPad paired for Sidecar, and at least one virtual screen. Override the binary path with `BD_CLI=/path/to/betterdisplaycli`.
 
 ## Limitations
 
-- The extension acts only when you run one of its commands. Connecting the iPad from Control Center or the AirPlay menu will not run the extend/mirror logic. Reacting to those would need a background watcher on display-configuration changes, which this extension deliberately does not install.
-- Auto-detection refuses to guess when more than one Sidecar device is present. Pin one in preferences.
+- Auto-reconnect is interval-polled, not event-driven — macOS exposes no on-wake or display-change event to extensions. Reconnection lands within about one interval of a drop, not instantly.
+- Connecting the iPad from Control Center or the AirPlay menu (rather than through this extension) will not run the extend/mirror logic, and auto-reconnect will not treat that as an intent to keep alive.
 - macOS itself decides which display is main when Sidecar attaches, and can put main on the iPad. The extension will not override that (it never writes the main display); it reports it and leaves the arrangement to you.
 - If the display mode will not settle, the extension reports it rather than forcing it. Fix a stuck arrangement by hand in BetterDisplay or Displays settings.
+- The menu bar and background commands are macOS-only (Raycast does not offer menu-bar commands on Windows).
 
 ## License
 
