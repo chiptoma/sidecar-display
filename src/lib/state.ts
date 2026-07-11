@@ -33,7 +33,7 @@ export async function loadKeepAliveState(): Promise<KeepAliveState> {
       intent: parsed.intent === "connected" ? "connected" : "disconnected",
       failedAttempts: typeof parsed.failedAttempts === "number" ? parsed.failedAttempts : 0,
       lastAttemptAtMs: typeof parsed.lastAttemptAtMs === "number" ? parsed.lastAttemptAtMs : 0,
-      gaveUp: parsed.gaveUp === true,
+      lastTickAtMs: typeof parsed.lastTickAtMs === "number" ? parsed.lastTickAtMs : 0,
     };
   } catch {
     return INITIAL_STATE;
@@ -58,7 +58,7 @@ export async function saveKeepAliveState(state: KeepAliveState): Promise<void> {
  *   called from every manual connect, disconnect, and toggle.
  */
 export async function recordIntent(intent: LinkIntent): Promise<void> {
-  await saveKeepAliveState({ intent, failedAttempts: 0, lastAttemptAtMs: 0, gaveUp: false });
+  await saveKeepAliveState({ intent, failedAttempts: 0, lastAttemptAtMs: 0, lastTickAtMs: 0 });
 }
 
 /**

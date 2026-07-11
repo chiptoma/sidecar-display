@@ -19,19 +19,21 @@ import { connectSidecar, isConnected } from "./lib/sidecar";
 import { loadKeepAliveState, recordIntent, saveKeepAliveState } from "./lib/state";
 
 const BACKOFF_BASE_MS = 15_000;
-const BACKOFF_CAP_MS = 5 * 60_000;
-const DEFAULT_MAX_ATTEMPTS = 8;
+const BACKOFF_CAP_MS = 2 * 60_000;
+const DORMANT_RETRY_MS = 15 * 60_000;
+const WAKE_GAP_MS = 3 * 60_000;
+const DEFAULT_FAST_ATTEMPTS = 8;
 
 /**
- * Clamps the configured attempt budget into a sane range.
+ * Clamps the configured fast-attempt budget into a sane range.
  *
  * @param value - Raw preference text, possibly empty or non-numeric.
- * @returns A positive integer number of attempts.
+ * @returns A positive integer number of fast attempts before the slow heartbeat.
  */
-function parseMaxAttempts(value: string): number {
+function parseFastAttempts(value: string): number {
   const parsed = Number.parseInt(value.trim(), 10);
   if (!Number.isInteger(parsed) || parsed < 1) {
-    return DEFAULT_MAX_ATTEMPTS;
+    return DEFAULT_FAST_ATTEMPTS;
   }
   return Math.min(parsed, 100);
 }
@@ -57,9 +59,11 @@ export default async function command(): Promise<void> {
       isConnected: linkUp,
       nowMs: Date.now(),
       state: await loadKeepAliveState(),
-      maxAttempts: parseMaxAttempts(prefs.keepAliveMaxAttempts ?? ""),
+      fastAttempts: parseFastAttempts(prefs.fastReconnectAttempts ?? ""),
       backoffBaseMs: BACKOFF_BASE_MS,
       backoffCapMs: BACKOFF_CAP_MS,
+      dormantRetryMs: DORMANT_RETRY_MS,
+      wakeGapMs: WAKE_GAP_MS,
     });
 
     await saveKeepAliveState(decision.nextState);

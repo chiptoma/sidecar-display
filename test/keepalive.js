@@ -2,14 +2,21 @@
 // UNIT TEST - KEEP-ALIVE DECISION
 // Pure logic; no hardware, no BetterDisplay. Runs anywhere.
 // -----------------------------------------------------------------------------
-// Context: Proves the state machine only reconnects a link that dropped on its
-//   own, backs off, gives up, and re-arms — the guarantees that keep background
-//   auto-reconnect from nagging or fighting a deliberate disconnect.
+// Context: Proves the state machine reconnects a self-dropped link, backs off,
+//   slows to a heartbeat (never abandons), re-arms instantly after the Mac
+//   sleeps, and never fights a deliberate disconnect.
 // =============================================================================
 
 const { decideKeepAlive, stateForIntent, INITIAL_STATE } = require("../.test-build/keepalive");
 
-const TUNING = { maxAttempts: 3, backoffBaseMs: 1000, backoffCapMs: 60000 };
+const TUNING = {
+  fastAttempts: 3,
+  backoffBaseMs: 1000,
+  backoffCapMs: 60_000,
+  dormantRetryMs: 900_000,
+  wakeGapMs: 180_000,
+};
+const NOW = 10_000_000;
 
 let failures = 0;
 
@@ -20,62 +27,68 @@ function expect(label, pass, extra = "") {
   }
 }
 
-function decide(overrides) {
-  return decideKeepAlive({ ...TUNING, nowMs: 1_000_000, ...overrides });
+// A recent tick (not a sleep gap), so wake logic stays out of the way by default.
+function connectedState(overrides = {}) {
+  return { intent: "connected", failedAttempts: 0, lastAttemptAtMs: 0, lastTickAtMs: NOW - 60_000, ...overrides };
 }
 
-// A deliberate disconnect must never be chased.
+function decide(overrides) {
+  return decideKeepAlive({ ...TUNING, nowMs: NOW, ...overrides });
+}
+
+// A deliberate disconnect is never chased.
 expect(
   "does nothing when the user wants it disconnected",
-  decide({ isConnected: false, state: stateForIntent("disconnected") }).action === "none",
+  decide({ isConnected: false, state: { ...connectedState(), intent: "disconnected" } }).action === "none",
 );
 
-// Nothing to do when the link is already up; counters are cleared.
+// Already connected: nothing to do, counters cleared.
 {
-  const d = decide({ isConnected: true, state: { intent: "connected", failedAttempts: 2, lastAttemptAtMs: 0, gaveUp: false } });
+  const d = decide({ isConnected: true, state: connectedState({ failedAttempts: 2 }) });
   expect("no action when already connected", d.action === "none");
   expect("clears failed attempts when connected", d.nextState.failedAttempts === 0);
 }
 
-// A link that dropped while the user wanted it connected is reconnected.
+// A link that dropped while wanted is reconnected.
 {
-  const d = decide({ isConnected: false, state: stateForIntent("connected") });
+  const d = decide({ isConnected: false, state: connectedState() });
   expect("reconnects a link that dropped on its own", d.action === "reconnect");
   expect("counts the attempt", d.nextState.failedAttempts === 1);
 }
 
-// Backoff: a second attempt is held off until the window elapses.
+// Backoff holds the next attempt until the window elapses.
 {
-  const justTried = { intent: "connected", failedAttempts: 1, lastAttemptAtMs: 999_500, gaveUp: false };
-  expect(
-    "waits out the backoff window",
-    decide({ isConnected: false, state: justTried, nowMs: 1_000_000 }).action === "none",
-  );
-  expect(
-    "retries once the backoff window passes",
-    decide({ isConnected: false, state: justTried, nowMs: 1_000_000 + 5000 }).action === "reconnect",
-  );
+  const tried = connectedState({ failedAttempts: 1, lastAttemptAtMs: NOW - 500 });
+  expect("waits out the backoff window", decide({ isConnected: false, state: tried }).action === "none");
+  const later = connectedState({ failedAttempts: 1, lastAttemptAtMs: NOW - 5000 });
+  expect("retries once the backoff window passes", decide({ isConnected: false, state: later }).action === "reconnect");
 }
 
-// Give up after the attempt budget, and stay quiet.
+// After the fast burst it slows to a heartbeat but NEVER abandons.
 {
-  const spent = { intent: "connected", failedAttempts: 3, lastAttemptAtMs: 0, gaveUp: false };
-  const d = decide({ isConnected: false, state: spent, nowMs: 9_000_000 });
-  expect("gives up after the attempt budget", d.action === "none" && d.nextState.gaveUp === true);
+  const spent = connectedState({ failedAttempts: 3, lastAttemptAtMs: NOW - 60_000 });
+  expect("holds during the slow-heartbeat window", decide({ isConnected: false, state: spent }).action === "none");
 
-  const gaveUp = { ...spent, gaveUp: true };
-  expect("stays quiet after giving up", decide({ isConnected: false, state: gaveUp, nowMs: 9_000_000 }).action === "none");
+  const heartbeatDue = connectedState({ failedAttempts: 3, lastAttemptAtMs: NOW - 1_000_000 });
+  const d = decide({ isConnected: false, state: heartbeatDue });
+  expect("still retries on the slow heartbeat (never abandons)", d.action === "reconnect");
+  expect("keeps counting past the fast burst", d.nextState.failedAttempts === 4);
 }
 
-// The link returning after a give-up clears the give-up.
+// Waking the Mac (a long gap since the last tick) re-arms an immediate attempt,
+// even deep into the dormant phase.
 {
-  const gaveUp = { intent: "connected", failedAttempts: 3, lastAttemptAtMs: 0, gaveUp: true };
-  const d = decide({ isConnected: true, state: gaveUp });
-  expect("clears give-up when the link returns", d.nextState.gaveUp === false && d.nextState.failedAttempts === 0);
+  const asleep = connectedState({ failedAttempts: 20, lastAttemptAtMs: NOW - 60_000, lastTickAtMs: NOW - 1_200_000 });
+  const d = decide({ isConnected: false, state: asleep });
+  expect("reconnects immediately after waking from sleep", d.action === "reconnect");
+  expect("wake resets the attempt counter", d.nextState.failedAttempts === 1);
 }
 
-// A manual connect re-arms after a give-up.
-expect("stateForIntent re-arms a fresh connected intent", stateForIntent("connected").gaveUp === false && stateForIntent("connected").failedAttempts === 0);
+// Every decision advances the tick clock, so wake detection works next time.
+expect("records the tick time", decide({ isConnected: false, state: connectedState() }).nextState.lastTickAtMs === NOW);
+
+// Manual intent re-arms cleanly.
+expect("stateForIntent re-arms connected", stateForIntent("connected").failedAttempts === 0);
 expect("initial state starts disconnected", INITIAL_STATE.intent === "disconnected");
 
 console.log(`\n${failures === 0 ? "ALL PASSED" : `${failures} FAILED`}`);

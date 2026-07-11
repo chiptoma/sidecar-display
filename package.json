@@ -69,11 +69,11 @@
       "placeholder": "Auto-detect"
     },
     {
-      "name": "keepAliveMaxAttempts",
+      "name": "fastReconnectAttempts",
       "type": "textfield",
       "required": false,
-      "title": "Auto-Reconnect Attempts",
-      "description": "How many times auto-reconnect retries a dropped link before giving up until the next manual connect. Backoff grows between attempts.",
+      "title": "Fast Reconnect Attempts",
+      "description": "How many quick reconnect attempts (with growing backoff) before slowing to an occasional retry. It never gives up entirely, and waking the Mac always retries immediately.",
       "default": "8"
     },
     {

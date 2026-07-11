@@ -35,13 +35,14 @@ Bind any of the first three to a hotkey in Raycast.
 
 Enable **background refresh** on the *Auto-Reconnect Sidecar* command (in its Raycast command settings) and it will restore the link after it drops — for example when the Mac wakes from sleep or wifi hiccups.
 
-It is deliberately conservative, so it never nags:
+It is deliberately conservative, so it never nags, but it never abandons a link you want either:
 
 - It reconnects **only** when you asked for the iPad to be connected (via any connect/toggle command or the menu bar) and the link then dropped **on its own**.
 - A **deliberate disconnect** stops it — it will not fight you.
-- If the iPad stays unreachable, it retries a few times with growing backoff, then **gives up** until you connect manually again. The number of attempts is the *Auto-Reconnect Attempts* preference.
+- On a drop it makes a burst of quick attempts with growing backoff (the *Fast Reconnect Attempts* preference), then slows to an occasional heartbeat retry. It does **not** give up permanently.
+- **Waking the Mac re-arms it immediately.** A long gap between background ticks means the Mac was asleep, so the next tick after you open the lid reconnects at once rather than waiting out a backoff.
 
-There is no on-wake event on macOS for extensions, so reconnection happens on the next background tick — within roughly one interval (default one minute), not instantly. Background refresh is off until you enable it.
+There is no on-wake event on macOS for extensions, so reconnection happens on the next background tick — within roughly one interval (default one minute) of waking, not instantly. Background refresh is off until you enable it on the command.
 
 ## Preferences
 
@@ -49,7 +50,7 @@ There is no on-wake event on macOS for extensions, so reconnection happens on th
 | --- | --- | --- |
 | Display Mode | `Extend` | Where the iPad should end up: extending, or folded into the main display's mirror set. |
 | iPad Name | *(empty)* | Leave empty to auto-detect via `get --sidecarList`, or to use whatever you last picked in the menu bar. Set it only to pin one when you have more than one Sidecar device. |
-| Auto-Reconnect Attempts | `8` | How many times auto-reconnect retries a dropped link before giving up until the next manual connect. |
+| Fast Reconnect Attempts | `8` | How many quick reconnect attempts (with growing backoff) before slowing to an occasional heartbeat retry. It never gives up entirely; waking the Mac always retries at once. |
 | BetterDisplay CLI | `/opt/homebrew/bin/betterdisplaycli` | Path to the binary. |
 | Settle Timeout | `6` | Seconds to wait for a display change to take effect. Clamped to 2–60. |
 

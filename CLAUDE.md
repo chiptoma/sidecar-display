@@ -50,8 +50,10 @@ forces extend (or mirror) without touching the main display.
   already in the requested state. Read the state before writing.
 - **Auto-reconnect only chases a link that dropped on its own.** Every manual
   connect/disconnect/toggle records intent via `recordIntent`; keep-alive must
-  respect a deliberate disconnect and give up after the attempt budget. There is
-  no on-wake or display-change event — it is interval-polled only.
+  respect a deliberate disconnect. It never abandons a wanted link permanently:
+  a fast backoff burst, then a slow heartbeat. There is no on-wake or
+  display-change event, so a long gap between ticks is treated as a wake and
+  re-arms an immediate attempt — that is the only "wake" signal available.
 
 ## Verification
 
