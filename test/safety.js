@@ -1,15 +1,15 @@
 // =============================================================================
-// HARDWARE TEST - SAFETY (no iPad required)
+// HARDWARE TEST - SAFETY (BetterDisplay engine, no iPad required)
 // Proves the extension makes no display changes when the iPad is absent.
 // -----------------------------------------------------------------------------
-// Context: Requires BetterDisplay running. Does NOT require an iPad, does NOT
-//   connect Sidecar, and makes no topology writes. Safe to run any time.
-// WARN: This is the regression guard for the incident where connecting an
-//   unreachable iPad cycled the main display. It asserts the main display is
-//   untouched across an attempt to settle a display that is not present.
+// Context: Requires BetterDisplay running. Does NOT require an iPad and makes no
+//   topology writes. Uses betterdisplaycli directly as an independent oracle for
+//   the main-display check.
 // =============================================================================
 
-const bd = require("../.test-build/betterdisplay");
+const { execFileSync } = require("node:child_process");
+
+const { createBetterDisplayBackend } = require("../.test-build/betterdisplay");
 const sc = require("../.test-build/sidecar");
 
 const CLI = process.env.BD_CLI || "/opt/homebrew/bin/betterdisplaycli";
@@ -23,27 +23,32 @@ function expect(label, pass, extra = "") {
   }
 }
 
-async function main() {
-  expect("BetterDisplay reports a main display", Boolean(await bd.readMainDisplay(CLI)));
-  const mainBefore = (await bd.readMainDisplay(CLI)).uuid;
+function mainUuid() {
+  const raw = execFileSync(CLI, ["get", "--displayWithMainStatus", "--identifiers"], { encoding: "utf8" });
+  const match = raw.match(/"UUID"\s*:\s*"([^"]+)"/);
+  return match ? match[1] : "?";
+}
 
-  expect("resolveIpadName honours an override and trims it", (await sc.resolveIpadName(CLI, "  X  ")) === "X");
-  expect("readMirrorState of an absent display is null", (await bd.readMirrorState(CLI, "No Such Display")) === null);
+async function main() {
+  const backend = createBetterDisplayBackend(CLI);
+  const mainBefore = mainUuid();
+  expect("BetterDisplay reports a main display", mainBefore !== "?");
+
+  expect("resolveIpadName honours an override and trims it", (await sc.resolveIpadName(backend, "  X  ")) === "X");
+  expect("readMirror of an absent display is null", (await backend.readMirror("No Such Display")) === null);
 
   // The incident scenario: ask the extension to settle a display that is not
-  // present. It must refuse before writing anything, and the main display must
-  // be exactly as it was.
-  const absent = { cliPath: CLI, ipadName: "No Such Display", mode: "extend", settleTimeoutMs: 2000 };
-
+  // present. It must refuse before writing anything, main untouched.
+  const absent = { ipadName: "No Such Display", mode: "extend", settleTimeoutMs: 2000 };
   let threw = false;
   try {
-    await sc.ensureDisplayMode(absent);
+    await sc.ensureDisplayMode(backend, absent);
   } catch {
     threw = true;
   }
   expect("ensureDisplayMode refuses an absent display", threw);
 
-  const mainAfter = (await bd.readMainDisplay(CLI)).uuid;
+  const mainAfter = mainUuid();
   expect("main display untouched by the refused attempt", mainAfter === mainBefore, `${mainBefore} -> ${mainAfter}`);
 
   console.log(`\n${failures === 0 ? "ALL PASSED" : `${failures} FAILED`}`);

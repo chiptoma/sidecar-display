@@ -1,12 +1,14 @@
 // =============================================================================
-// HARDWARE TEST - CONNECT LIFECYCLE
-// Exercises the connect, disconnect, and idempotence paths on real hardware.
+// HARDWARE TEST - CONNECT LIFECYCLE (BetterDisplay engine)
+// Exercises connect, disconnect, and idempotence on real hardware.
 // -----------------------------------------------------------------------------
 // Context: Requires BetterDisplay running and an iPad paired for Sidecar.
 // WARN: Disconnects and reconnects the iPad. Leaves it connected and extending.
 // =============================================================================
 
-const bd = require("../.test-build/betterdisplay");
+const { execFileSync } = require("node:child_process");
+
+const { createBetterDisplayBackend } = require("../.test-build/betterdisplay");
 const sc = require("../.test-build/sidecar");
 
 const CLI = process.env.BD_CLI || "/opt/homebrew/bin/betterdisplaycli";
@@ -20,37 +22,40 @@ function expect(label, pass, extra = "") {
   }
 }
 
+function mainUuid() {
+  const raw = execFileSync(CLI, ["get", "--displayWithMainStatus", "--identifiers"], { encoding: "utf8" });
+  const match = raw.match(/"UUID"\s*:\s*"([^"]+)"/);
+  return match ? match[1] : "?";
+}
+
 async function main() {
-  const ipad = await sc.resolveIpadName(CLI, "");
-  const config = { cliPath: CLI, ipadName: ipad, mode: "extend", settleTimeoutMs: 15000 };
-  const mainBefore = (await bd.readMainDisplay(CLI)).uuid;
+  const backend = createBetterDisplayBackend(CLI);
+  const ipad = await sc.resolveIpadName(backend, "");
+  const config = { ipadName: ipad, mode: "extend", settleTimeoutMs: 15000 };
+  const mainBefore = mainUuid();
 
   console.log("--- disconnect ---");
-  await sc.disconnectSidecar(config);
-  expect("link is down", (await sc.isConnected(config)) === false);
-  expect("iPad display is gone", (await bd.readMirrorState(CLI, ipad)) === null);
+  await sc.disconnectSidecar(backend, config);
+  expect("link is down", (await sc.isConnected(backend, config)) === false);
+  expect("iPad display is gone", (await backend.readMirror(ipad)) === null);
 
   console.log("--- disconnect again ---");
-  await sc.disconnectSidecar(config);
+  await sc.disconnectSidecar(backend, config);
   expect("redundant disconnect does not throw", true);
 
   console.log("--- connect ---");
-  const outcome = await sc.connectSidecar(config);
-  expect("link is up", (await sc.isConnected(config)) === true);
-  // A healthy connect either settles into extend, or safely declines because
-  // macOS made the iPad main. Both are acceptable; a silent non-settle is not.
+  const outcome = await sc.connectSidecar(backend, config);
+  expect("link is up", (await sc.isConnected(backend, config)) === true);
   const safeOutcome = outcome.settled === true || /main/.test(outcome.skippedReason || "");
   expect("connect reached a safe outcome", safeOutcome, JSON.stringify(outcome));
 
   console.log("--- connect again ---");
-  const again = await sc.connectSidecar(config);
+  const again = await sc.connectSidecar(backend, config);
   expect("redundant connect makes no change", again.changed === false, JSON.stringify(again));
 
-  // The extension never writes the main display. macOS itself may re-pick main
-  // across a disconnect/reconnect, so this is reported, not asserted.
-  const mainAfter = (await bd.readMainDisplay(CLI)).uuid;
+  const mainAfter = mainUuid();
   if (mainAfter !== mainBefore) {
-    console.log(`NOTE  macOS moved the main display across reconnect (${mainBefore} -> ${mainAfter}); not written by the extension`);
+    console.log(`NOTE  macOS moved main across reconnect (${mainBefore} -> ${mainAfter}); not written by the extension`);
   } else {
     console.log("NOTE  main display unchanged across reconnect");
   }

@@ -133,10 +133,10 @@
     "dev": "ray develop",
     "lint": "ray lint",
     "fix-lint": "ray lint --fix",
-    "test:build": "tsc src/lib/betterdisplay.ts src/lib/sidecar.ts src/lib/keepalive.ts --outDir .test-build --module commonjs --target ES2022 --strict --skipLibCheck",
-    "test:unit": "npm run test:build && node test/keepalive.js",
-    "test:safety": "npm run test:build && node test/keepalive.js && node test/safety.js",
-    "test:hardware": "npm run test:build && node test/keepalive.js && node test/safety.js && node test/e2e.js && node test/roundtrip.js",
+    "test:build": "tsc src/lib/backend.ts src/lib/betterdisplay.ts src/lib/sidecar.ts src/lib/keepalive.ts --outDir .test-build --module commonjs --target ES2022 --strict --skipLibCheck",
+    "test:unit": "npm run test:build && node test/keepalive.js && node test/orchestration.js",
+    "test:safety": "npm run test:unit && node test/safety.js",
+    "test:hardware": "npm run test:safety && node test/e2e.js && node test/roundtrip.js",
     "publish": "npx @raycast/api@latest publish"
   }
 }

@@ -6,7 +6,7 @@
 import { showHUD, showToast, Toast } from "@raycast/api";
 
 import { describeOutcome, reportError } from "./lib/feedback";
-import { loadConfig } from "./lib/preferences";
+import { getBackend, loadConfig } from "./lib/preferences";
 import { connectSidecar } from "./lib/sidecar";
 import { recordIntent } from "./lib/state";
 
@@ -17,10 +17,11 @@ import { recordIntent } from "./lib/state";
  */
 export default async function command(): Promise<void> {
   try {
-    const config = await loadConfig();
+    const backend = getBackend();
+    const config = await loadConfig(backend);
     await showToast({ style: Toast.Style.Animated, title: `Connecting ${config.ipadName}…` });
 
-    const outcome = await connectSidecar(config);
+    const outcome = await connectSidecar(backend, config);
     await recordIntent("connected");
     await showHUD(describeOutcome(config, outcome));
   } catch (error) {

@@ -12,12 +12,11 @@
 import { Icon, MenuBarExtra, openExtensionPreferences } from "@raycast/api";
 import { useEffect, useState } from "react";
 
-import { listSidecarDevices } from "./lib/betterdisplay";
-import { buildConfig, readTuning } from "./lib/preferences";
-import { connectSidecar, disconnectSidecar, isConnected } from "./lib/sidecar";
+import { buildConfig, getBackend } from "./lib/preferences";
+import { connectSidecar, disconnectSidecar, ensureDisplayMode, isConnected } from "./lib/sidecar";
 import { loadSelectedDevice, recordIntent, saveSelectedDevice } from "./lib/state";
 
-import type { SidecarDevice } from "./lib/betterdisplay";
+import type { SidecarDevice } from "./lib/backend";
 
 /** Everything the menu needs to render one refresh. */
 interface StatusModel {
@@ -32,11 +31,11 @@ interface StatusModel {
  * @returns Paired devices, the selected device, and whether it is connected.
  */
 async function loadStatus(): Promise<StatusModel> {
-  const { cliPath } = readTuning();
-  const devices = await listSidecarDevices(cliPath);
+  const backend = getBackend();
+  const devices = await backend.listDevices();
   const pinned = await loadSelectedDevice();
   const selected = pinned !== "" ? pinned : (devices[0]?.name ?? "");
-  const connected = selected !== "" && (await isConnected(buildConfig(selected)));
+  const connected = selected !== "" && (await isConnected(backend, buildConfig(selected)));
   return { devices, selected, connected };
 }
 
@@ -48,7 +47,7 @@ async function loadStatus(): Promise<StatusModel> {
 async function connectDevice(name: string): Promise<void> {
   await saveSelectedDevice(name);
   await recordIntent("connected");
-  await connectSidecar(buildConfig(name));
+  await connectSidecar(getBackend(), buildConfig(name));
 }
 
 /**
@@ -58,7 +57,17 @@ async function connectDevice(name: string): Promise<void> {
  */
 async function disconnectDevice(name: string): Promise<void> {
   await recordIntent("disconnected");
-  await disconnectSidecar(buildConfig(name));
+  await disconnectSidecar(getBackend(), buildConfig(name));
+}
+
+/**
+ * Switches the connected iPad between extend and mirror.
+ *
+ * @param name - Device to reconfigure.
+ * @param mode - Desired display mode.
+ */
+async function setMode(name: string, mode: "extend" | "mirror"): Promise<void> {
+  await ensureDisplayMode(getBackend(), buildConfig(name, { mode }));
 }
 
 /**
@@ -94,12 +103,12 @@ export default function Command(): React.JSX.Element {
               <MenuBarExtra.Item
                 title="Extend"
                 icon={Icon.AppWindowGrid2x2}
-                onAction={() => connectSidecar(buildConfig(model.selected, { mode: "extend" }))}
+                onAction={() => setMode(model.selected, "extend")}
               />
               <MenuBarExtra.Item
                 title="Mirror"
                 icon={Icon.Duplicate}
-                onAction={() => connectSidecar(buildConfig(model.selected, { mode: "mirror" }))}
+                onAction={() => setMode(model.selected, "mirror")}
               />
               <MenuBarExtra.Item
                 title="Disconnect"

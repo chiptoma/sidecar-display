@@ -5,7 +5,7 @@
 
 import { showToast, Toast } from "@raycast/api";
 
-import { BetterDisplayError } from "./betterdisplay";
+import { SidecarError } from "./backend";
 
 import type { ModeOutcome, SidecarConfig } from "./sidecar";
 
@@ -38,8 +38,7 @@ export function describeOutcome(config: SidecarConfig, outcome: ModeOutcome): st
  * @param title - Short headline for the toast.
  */
 export async function reportError(error: unknown, title: string): Promise<void> {
-  const message =
-    error instanceof BetterDisplayError || error instanceof Error ? error.message : String(error);
+  const message = error instanceof SidecarError || error instanceof Error ? error.message : String(error);
 
   await showToast({ style: Toast.Style.Failure, title, message });
 }

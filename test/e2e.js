@@ -1,13 +1,14 @@
 // =============================================================================
-// HARDWARE TEST - DISPLAY MODE
-// Reproduces the mirroring bug against real hardware and asserts it is healed.
+// HARDWARE TEST - DISPLAY MODE (BetterDisplay engine)
+// Reproduces the mirroring case and asserts the extension heals it.
 // -----------------------------------------------------------------------------
-// Context: Requires BetterDisplay running, an iPad paired for Sidecar, and at
-//   least one BetterDisplay virtual screen. Run via `npm run test:hardware`.
+// Context: Requires BetterDisplay running and an iPad connected over Sidecar.
 // WARN: Briefly mirrors the iPad. Asserts the main display never moves.
 // =============================================================================
 
-const bd = require("../.test-build/betterdisplay");
+const { execFileSync } = require("node:child_process");
+
+const { createBetterDisplayBackend } = require("../.test-build/betterdisplay");
 const sc = require("../.test-build/sidecar");
 
 const CLI = process.env.BD_CLI || "/opt/homebrew/bin/betterdisplaycli";
@@ -21,37 +22,39 @@ function expect(label, pass, extra = "") {
   }
 }
 
+function mainUuid() {
+  const raw = execFileSync(CLI, ["get", "--displayWithMainStatus", "--identifiers"], { encoding: "utf8" });
+  const match = raw.match(/"UUID"\s*:\s*"([^"]+)"/);
+  return match ? match[1] : "?";
+}
+
 async function main() {
-  const devices = await bd.listSidecarDevices(CLI);
-  expect("listSidecarDevices finds a Sidecar device", devices.length >= 1, JSON.stringify(devices));
+  const backend = createBetterDisplayBackend(CLI);
 
-  const ipad = await sc.resolveIpadName(CLI, "");
-  expect("resolveIpadName auto-detects", ipad === devices[0].name, ipad);
-  expect("resolveIpadName honours override and trims", (await sc.resolveIpadName(CLI, "  X  ")) === "X");
+  const devices = await backend.listDevices();
+  expect("listDevices finds a Sidecar device", devices.length >= 1, JSON.stringify(devices));
 
-  const config = { cliPath: CLI, ipadName: ipad, mode: "extend", settleTimeoutMs: 8000 };
+  const ipad = await sc.resolveIpadName(backend, "");
+  const config = { ipadName: ipad, mode: "extend", settleTimeoutMs: 8000 };
+  const mainBefore = mainUuid();
+  expect("the iPad is not main at the start", !(await backend.isIpadMain(ipad)));
 
-  const main = await bd.readMainDisplay(CLI);
-  expect("readMainDisplay returns a device with a UUID", Boolean(main && main.uuid));
-  const mainBefore = main.uuid;
-  expect("the iPad is not the main display at the start", main.name !== ipad, main.name);
+  expect("readMirror of an absent display is null", (await backend.readMirror("No Such")) === null);
+  expect("isConnected reports the iPad is attached", (await sc.isConnected(backend, config)) === true);
 
-  expect("readMirrorState of an absent display is null", (await bd.readMirrorState(CLI, "No Such")) === null);
-  expect("isConnected reports the iPad is attached", (await sc.isConnected(config)) === true);
-
-  const noop = await sc.ensureDisplayMode(config);
+  const noop = await sc.ensureDisplayMode(backend, config);
   expect("ensureDisplayMode(extend) no-ops when extending", !noop.changed && noop.settled, JSON.stringify(noop));
 
   console.log("\n--- forcing mirror, then healing ---");
-  await bd.startMirroring(CLI, mainBefore, ipad);
+  await backend.mirrorToMain(ipad);
   await new Promise((resolve) => setTimeout(resolve, 2500));
-  expect("iPad is mirroring (bug reproduced)", (await bd.readMirrorState(CLI, ipad)) === true);
+  expect("iPad is mirroring (case reproduced)", (await backend.readMirror(ipad)) === true);
 
-  const healed = await sc.ensureDisplayMode(config);
+  const healed = await sc.ensureDisplayMode(backend, config);
   expect("ensureDisplayMode(extend) healed it", healed.changed && healed.settled, JSON.stringify(healed));
-  expect("iPad extends again", (await bd.readMirrorState(CLI, ipad)) === false);
+  expect("iPad extends again", (await backend.readMirror(ipad)) === false);
 
-  const mainAfter = (await bd.readMainDisplay(CLI)).uuid;
+  const mainAfter = mainUuid();
   expect("main display never moved", mainAfter === mainBefore, `${mainBefore} -> ${mainAfter}`);
 
   console.log(`\n${failures === 0 ? "ALL PASSED" : `${failures} FAILED`}`);

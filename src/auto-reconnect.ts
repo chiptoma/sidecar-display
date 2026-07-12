@@ -14,7 +14,7 @@ import { environment, LaunchType, showHUD } from "@raycast/api";
 
 import { reportError } from "./lib/feedback";
 import { decideKeepAlive } from "./lib/keepalive";
-import { loadConfig, readKeepAliveTuning } from "./lib/preferences";
+import { getBackend, loadConfig, readKeepAliveTuning } from "./lib/preferences";
 import { connectSidecar, isConnected } from "./lib/sidecar";
 import { loadKeepAliveState, recordIntent, saveKeepAliveState } from "./lib/state";
 
@@ -31,8 +31,9 @@ export default async function command(): Promise<void> {
       await recordIntent("connected");
     }
 
-    const config = await loadConfig();
-    const linkUp = await isConnected(config);
+    const backend = getBackend();
+    const config = await loadConfig(backend);
+    const linkUp = await isConnected(backend, config);
 
     const decision = decideKeepAlive({
       ...readKeepAliveTuning(),
@@ -44,7 +45,7 @@ export default async function command(): Promise<void> {
     await saveKeepAliveState(decision.nextState);
 
     if (decision.action === "reconnect") {
-      await connectSidecar(config);
+      await connectSidecar(backend, config);
       if (environment.launchType === LaunchType.UserInitiated) {
         await showHUD(`Reconnected ${config.ipadName}`);
       }

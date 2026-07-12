@@ -9,15 +9,16 @@
 
 import { getPreferenceValues } from "@raycast/api";
 
+import { createBetterDisplayBackend } from "./betterdisplay";
 import { resolveIpadName } from "./sidecar";
 import { loadSelectedDevice } from "./state";
 
+import type { DisplayMode, SidecarBackend } from "./backend";
 import type { KeepAliveTuning } from "./keepalive";
-import type { DisplayMode, SidecarConfig } from "./sidecar";
+import type { SidecarConfig } from "./sidecar";
 
 /** The tuning shared by every command, before a device is chosen. */
 export interface Tuning {
-  readonly cliPath: string;
   readonly mode: DisplayMode;
   readonly settleTimeoutMs: number;
 }
@@ -96,12 +97,11 @@ export function readKeepAliveTuning(): KeepAliveTuning {
 /**
  * Reads the device-independent tuning from preferences.
  *
- * @returns CLI path, requested mode, and settle timeout.
+ * @returns Requested mode and settle timeout.
  */
 export function readTuning(): Tuning {
   const prefs = getPreferenceValues<Preferences>();
   return {
-    cliPath: prefs.betterDisplayCliPath.trim(),
     mode: prefs.displayMode,
     settleTimeoutMs: parseTimeoutMs(prefs.settleTimeoutSeconds),
   };
@@ -119,19 +119,26 @@ export function buildConfig(ipadName: string, overrides: Partial<Tuning> = {}): 
 }
 
 /**
+ * Builds the engine selected in preferences.
+ *
+ * @returns The BetterDisplay backend (the native backend is added in stage 2).
+ */
+export function getBackend(): SidecarBackend {
+  const prefs = getPreferenceValues<Preferences>();
+  return createBetterDisplayBackend(prefs.betterDisplayCliPath.trim());
+}
+
+/**
  * Builds the config every command runs on, auto-detecting the iPad if needed.
  *
+ * @param backend - The engine, used to auto-detect the device when unset.
  * @returns Fully resolved configuration.
- *
- * NOTE: Auto-detection issues a CLI call, so this is async by necessity.
  */
-export async function loadConfig(): Promise<SidecarConfig> {
-  const { cliPath } = readTuning();
-
+export async function loadConfig(backend: SidecarBackend): Promise<SidecarConfig> {
   // Priority: an explicit preference override, then a device pinned from the
   // menu bar, then auto-detection.
   const prefs = getPreferenceValues<Preferences>();
   const override = (prefs.ipadName ?? "").trim() || (await loadSelectedDevice());
 
-  return buildConfig(await resolveIpadName(cliPath, override));
+  return buildConfig(await resolveIpadName(backend, override));
 }
