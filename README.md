@@ -1,23 +1,30 @@
 # Sidecar Display
 
-A Raycast extension that connects your iPad over Sidecar and forces it to **extend** rather than mirror, driving [BetterDisplay](https://github.com/waydabber/BetterDisplay) through `betterdisplaycli`.
+A Raycast extension that connects your iPad over Sidecar and forces it to **extend** rather than mirror. It ships two interchangeable engines: **BetterDisplay** (via `betterdisplaycli`) and **Native** (a bundled helper using macOS SidecarCore + CoreGraphics, no external dependency).
 
 ## Why
 
 The usual way to attach an iPad is to click it under **Mirror or extend to** in System Settings → Displays. On a Mac that already uses a BetterDisplay virtual screen as a mirror master, macOS often resolves that menu to *mirroring*, and you have to reconnect your virtual displays by hand to get an extended desktop back.
 
-BetterDisplay can attach Sidecar itself, and that path extends by default. This extension uses it, so the workaround usually isn't needed at all — and when something does go wrong, the extension detects it and repairs it.
+Attaching Sidecar programmatically extends by default, so the workaround usually isn't needed — and when something does go wrong, the extension detects it and repairs it, without ever touching the main display.
 
 No AppleScript, no System Settings window, no UI-tree scraping.
+
+## Engines
+
+Pick one with the **Engine** preference:
+
+- **BetterDisplay** (default) — drives the `betterdisplaycli` binary. Proven and low-maintenance, but requires the BetterDisplay app to be installed and running.
+- **Native (no dependency)** — a small bundled `sidecar-helper` binary that connects/disconnects via the private `SidecarCore` framework and controls mirroring via public CoreGraphics. No BetterDisplay needed.
+
+The native engine relies on a private Apple framework, so a future macOS update could change it (it is validated on macOS 26). If a native command starts failing after an OS update, switch back to BetterDisplay and the helper can be patched. Both engines honour the same safety guarantees.
 
 ## Requirements
 
 - macOS with Sidecar support, and an iPad signed in to the same Apple ID
-- [BetterDisplay](https://github.com/waydabber/BetterDisplay) running, with CLI integration enabled (it is on by default)
-- `betterdisplaycli` on disk — `brew install --cask betterdisplay` provides it
 - Raycast
-
-Developed and tested against **BetterDisplay 4.3.5** with Pro enabled. The connect, disconnect, and mirror controls have not been verified on a non-Pro install; if a command reports a failure on non-Pro BetterDisplay, that is the likely cause.
+- For the **BetterDisplay** engine: [BetterDisplay](https://github.com/waydabber/BetterDisplay) running with CLI integration enabled (on by default) — `brew install --cask betterdisplay`. Tested against **BetterDisplay 4.3.5** with Pro enabled; non-Pro is unverified.
+- For the **Native** engine: nothing extra at runtime. The helper is compiled from `native/sidecar-helper.swift` by `npm run build` / `npm run dev` (needs `swiftc`, which ships with the Xcode Command Line Tools).
 
 ## Commands
 
@@ -47,6 +54,7 @@ There is no on-wake event on macOS for extensions, so reconnection happens on th
 
 | Preference | Default | Purpose |
 | --- | --- | --- |
+| Engine | `BetterDisplay` | Which engine drives Sidecar: BetterDisplay (needs the app) or Native (no dependency). |
 | Display Mode | `Extend` | Where the iPad should end up: extending, or folded into the main display's mirror set. |
 | iPad Name | *(empty)* | Leave empty to auto-detect via `get --sidecarList`, or to use whatever you last picked in the menu bar. Set it only to pin one when you have more than one Sidecar device. |
 | Fast Reconnect Attempts | `3` | Quick reconnect attempts after a drop before slowing to the heartbeat. Waking the Mac restarts the fast phase. Never gives up entirely. |

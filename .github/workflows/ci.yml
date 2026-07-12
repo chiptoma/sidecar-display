@@ -32,6 +32,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Compile native helper
+        run: npm run build:helper
+
       - name: Lint
         run: npx ray lint
 

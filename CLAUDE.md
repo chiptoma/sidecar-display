@@ -9,11 +9,23 @@ forces extend (or mirror) without touching the main display.
 
 ## Architecture
 
-- `src/lib/betterdisplay.ts` — the only module that shells out to the CLI.
-  Reads tolerate rejection (`Failed.` on stderr, exit 1) and return `null`;
-  writes throw. Nothing else in the codebase invokes the binary.
-- `src/lib/sidecar.ts` — display/link orchestration. Pure Node, no
-  `@raycast/api` import, so the hardware tests can exercise it.
+- `src/lib/backend.ts` — the `SidecarBackend` interface every engine implements,
+  plus shared types (`SidecarDevice`, `DisplayMode`) and `SidecarError`. The
+  orchestration depends ONLY on this, so it is engine-agnostic and mockable.
+- `src/lib/betterdisplay.ts` — `createBetterDisplayBackend(cliPath)`, the engine
+  over `betterdisplaycli`. Reads tolerate rejection (`Failed.` on stderr, exit 1)
+  and return `null`; writes throw.
+- `src/lib/native.ts` — `createNativeBackend(helperPath)`, the engine over the
+  bundled `sidecar-helper` binary (SidecarCore + CoreGraphics). No BetterDisplay.
+- `native/sidecar-helper.swift` — the helper source; compiled to
+  `assets/sidecar-helper` by `npm run build:helper` (gitignored, rebuilt on
+  every `build`/`dev`). Identifies the Sidecar display by `NSScreen.localizedName`
+  containing "Sidecar"/"AirPlay"; connect/disconnect via runtime-dispatched
+  SidecarCore selectors; extend/mirror via `CGConfigureDisplayMirrorOfDisplay`
+  keeping the current main as master.
+- `src/lib/sidecar.ts` — display/link orchestration. Takes a `SidecarBackend`.
+  Pure Node, no `@raycast/api` import, so tests exercise it with a mock backend
+  (`test/orchestration.js`) or a real engine.
 - `src/lib/keepalive.ts` — pure decision state machine for background
   auto-reconnect. No I/O, so it is unit-tested headlessly (`test/keepalive.js`).
 - `src/lib/state.ts` — the only module that touches Raycast `LocalStorage`

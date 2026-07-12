@@ -7,9 +7,11 @@
 //   text, and leaves optional fields undefined, so both are normalised here.
 // =============================================================================
 
-import { getPreferenceValues } from "@raycast/api";
+import { environment, getPreferenceValues } from "@raycast/api";
+import { join } from "node:path";
 
 import { createBetterDisplayBackend } from "./betterdisplay";
+import { createNativeBackend } from "./native";
 import { resolveIpadName } from "./sidecar";
 import { loadSelectedDevice } from "./state";
 
@@ -121,10 +123,13 @@ export function buildConfig(ipadName: string, overrides: Partial<Tuning> = {}): 
 /**
  * Builds the engine selected in preferences.
  *
- * @returns The BetterDisplay backend (the native backend is added in stage 2).
+ * @returns The Native engine when chosen, otherwise the BetterDisplay engine.
  */
 export function getBackend(): SidecarBackend {
   const prefs = getPreferenceValues<Preferences>();
+  if (prefs.backend === "native") {
+    return createNativeBackend(join(environment.assetsPath, "sidecar-helper"));
+  }
   return createBetterDisplayBackend(prefs.betterDisplayCliPath.trim());
 }
 
