@@ -9,7 +9,7 @@
 //   the main display is never written and no display is ever cycled.
 // =============================================================================
 
-import { Icon, MenuBarExtra, openExtensionPreferences } from "@raycast/api";
+import { getPreferenceValues, Icon, MenuBarExtra, openExtensionPreferences } from "@raycast/api";
 import { useEffect, useState } from "react";
 
 import { buildConfig, getBackend } from "./lib/preferences";
@@ -86,14 +86,15 @@ export default function Command(): React.JSX.Element {
 
   const connected = model?.connected ?? false;
   const device = model?.selected || "Sidecar";
-  // Icon-only, constant width, so menu-bar managers like Bartender do not see a
-  // changing item width. State is conveyed by the icon and the tooltip, and the
-  // device name lives inside the dropdown rather than in the bar.
+  // Default is icon-only (constant width, friendly to menu-bar managers like
+  // Bartender). The optional title shows the device name when connected.
+  const showName = getPreferenceValues<Preferences>().showDeviceName === true;
   const icon = connected ? Icon.Monitor : Icon.MinusCircle;
   const tooltip = connected ? `${device} — connected` : `${device} — disconnected`;
+  const title = showName && connected ? device : undefined;
 
   return (
-    <MenuBarExtra icon={icon} tooltip={tooltip} isLoading={model === null}>
+    <MenuBarExtra icon={icon} title={title} tooltip={tooltip} isLoading={model === null}>
       {model !== null && model.devices.length === 0 && <MenuBarExtra.Item title="No Sidecar devices found" />}
 
       {model !== null && model.selected !== "" && (

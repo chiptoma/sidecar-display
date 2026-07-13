@@ -53,6 +53,15 @@
       ]
     },
     {
+      "name": "showDeviceName",
+      "type": "checkbox",
+      "required": false,
+      "title": "Menu Bar",
+      "label": "Show the connected device name next to the icon",
+      "description": "Off keeps a constant-width icon that is friendlier to menu-bar managers like Bartender. On shows the device name when connected.",
+      "default": false
+    },
+    {
       "name": "displayMode",
       "type": "dropdown",
       "required": false,
