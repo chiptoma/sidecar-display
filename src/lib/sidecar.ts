@@ -3,9 +3,9 @@
 // Connects an iPad over Sidecar and settles it into extend or mirror mode.
 // -----------------------------------------------------------------------------
 // Context: Engine-agnostic — every hardware touch goes through a SidecarBackend,
-//   so this module is unit-testable against a mock. Backends apply display
-//   changes asynchronously, so a read that gates a write is confirmed stable
-//   (two consecutive equal, non-null samples) first.
+//   so this module is unit-testable against a mock. macOS spends about a second
+//   rearranging a freshly connected display (often mirrored first), so the mode
+//   is re-asserted until it holds correct across several reads, not set once.
 // WARN: The main display is never written, and no display is ever disconnected
 //   or cycled. The only mode writes are detaching the iPad from a mirror set
 //   (extend) or folding it into the current main's set (mirror), and both are
@@ -17,7 +17,12 @@ import { SidecarError } from "./backend";
 import type { DisplayMode, SidecarBackend } from "./backend";
 
 const POLL_INTERVAL_MS = 400;
-const STABILITY_INTERVAL_MS = 500;
+
+// The desired mode must read correct this many times in a row before we call it
+// settled. macOS spends about a second rearranging a freshly connected Sidecar
+// display (it often comes up mirrored, then flips), so a single confirming read
+// can be a transient; holding across several reads outlasts that window.
+const REQUIRED_STABLE_READS = 3;
 
 /** What a command needs beyond the backend: the device and timing. */
 export interface SidecarConfig {
@@ -58,37 +63,6 @@ async function pollUntil(probe: () => Promise<boolean>, timeoutMs: number): Prom
 }
 
 /**
- * Waits until the iPad's mirror state reads the same non-null value twice.
- *
- * @param backend - The engine.
- * @param config  - Resolved configuration.
- * @returns The settled mirror state, or null if it never stabilised in time.
- *
- * NOTE: This gate keeps a flaky or phantom Sidecar connection from ever reaching
- *   a topology write. A display that keeps appearing and vanishing never yields
- *   two consecutive equal reads, so it returns null.
- */
-async function awaitStableMirrorState(
-  backend: SidecarBackend,
-  config: SidecarConfig,
-): Promise<boolean | null> {
-  const deadline = Date.now() + config.settleTimeoutMs;
-  let previous = await backend.readMirror(config.ipadName);
-
-  for (;;) {
-    await new Promise((resolve) => setTimeout(resolve, STABILITY_INTERVAL_MS));
-    const current = await backend.readMirror(config.ipadName);
-    if (previous !== null && current !== null && previous === current) {
-      return current;
-    }
-    if (Date.now() >= deadline) {
-      return null;
-    }
-    previous = current;
-  }
-}
-
-/**
  * Resolves which iPad to act on, preferring an explicit override.
  *
  * @param backend  - The engine.
@@ -120,53 +94,73 @@ export async function resolveIpadName(backend: SidecarBackend, override: string)
 // -----------------------------------------------------------
 
 /**
- * Brings the iPad into the requested display mode, or safely declines.
+ * Brings the iPad into the requested display mode and holds it there.
  *
  * @param backend - The engine.
  * @param config  - Resolved configuration.
  * @returns Whether a change was made and whether it settled, or the reason the
  *   step was skipped.
  *
- * NOTE: Every write is gated on a stable, present iPad display that is not the
- *   main display. There is no escalation path and nothing is ever cycled.
+ * NOTE: Re-asserts the mode whenever a read disagrees, and only reports settled
+ *   once the mode has read correct several times running — this outlasts the
+ *   second or so macOS spends rearranging a freshly connected display, during
+ *   which it often reports mirrored before flipping. No display is ever cycled,
+ *   and the main display is never written. If the iPad's display never appears,
+ *   nothing is written and this throws; if the iPad is the main display, the
+ *   mode is left untouched.
  */
 export async function ensureDisplayMode(
   backend: SidecarBackend,
   config: SidecarConfig,
 ): Promise<ModeOutcome> {
   const wantMirror = config.mode === "mirror";
+  const deadline = Date.now() + config.settleTimeoutMs;
 
-  const current = await awaitStableMirrorState(backend, config);
-  if (current === null) {
-    throw new SidecarError(
-      `The iPad display “${config.ipadName}” is not stably present; made no display changes.`,
-    );
+  let changed = false;
+  let everPresent = false;
+  let stableReads = 0;
+
+  for (;;) {
+    const current = await backend.readMirror(config.ipadName);
+
+    if (current !== null) {
+      everPresent = true;
+
+      if (await backend.isIpadMain(config.ipadName)) {
+        return {
+          changed,
+          settled: false,
+          skippedReason: "the iPad is the main display, so its mode was left untouched",
+        };
+      }
+
+      if (current === wantMirror) {
+        stableReads += 1;
+        if (stableReads >= REQUIRED_STABLE_READS) {
+          return { changed, settled: true };
+        }
+      } else {
+        if (wantMirror) {
+          await backend.mirrorToMain(config.ipadName);
+        } else {
+          await backend.extend(config.ipadName);
+        }
+        changed = true;
+        stableReads = 0;
+      }
+    }
+
+    if (Date.now() >= deadline) {
+      if (!everPresent) {
+        throw new SidecarError(
+          `The iPad display “${config.ipadName}” is not stably present; made no display changes.`,
+        );
+      }
+      return { changed, settled: false };
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
   }
-
-  if (await backend.isIpadMain(config.ipadName)) {
-    return {
-      changed: false,
-      settled: false,
-      skippedReason: "the iPad is the main display, so its mode was left untouched",
-    };
-  }
-
-  if (current === wantMirror) {
-    return { changed: false, settled: true };
-  }
-
-  if (wantMirror) {
-    await backend.mirrorToMain(config.ipadName);
-  } else {
-    await backend.extend(config.ipadName);
-  }
-
-  const settled = await pollUntil(
-    async () => (await backend.readMirror(config.ipadName)) === wantMirror,
-    config.settleTimeoutMs,
-  );
-
-  return { changed: true, settled };
 }
 
 // -----------------------------------------------------------
