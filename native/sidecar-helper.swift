@@ -94,14 +94,41 @@ func runWithCompletion(_ selector: String, _ manager: NSObject, _ device: NSObje
 // COREGRAPHICS (public)
 // -----------------------------------------------------------
 
-/// The CGDirectDisplayID of the online Sidecar display, if one is present.
-func sidecarDisplayID() -> CGDirectDisplayID? {
+// Apple's AirPlay/Sidecar display vendor number: the ASCII bytes "aapl".
+let AIRPLAY_VENDOR: UInt32 = 0x6161_706C
+
+/// CGDirectDisplayIDs whose NSScreen name marks them as Sidecar/AirPlay.
+///
+/// NOTE: NSScreen omits displays that are in a mirror set, so this finds the
+///   Sidecar display only while it is extended. The vendor check below is what
+///   still finds it once it has been folded into a mirror set.
+func namedSidecarDisplayIDs() -> Set<CGDirectDisplayID> {
+    var ids = Set<CGDirectDisplayID>()
     for screen in NSScreen.screens {
         let name = screen.localizedName
-        if name.localizedCaseInsensitiveContains("sidecar") || name.localizedCaseInsensitiveContains("airplay") {
-            if let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? UInt32 {
-                return CGDirectDisplayID(number)
-            }
+        guard name.localizedCaseInsensitiveContains("sidecar") || name.localizedCaseInsensitiveContains("airplay")
+        else { continue }
+        if let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? UInt32 {
+            ids.insert(CGDirectDisplayID(number))
+        }
+    }
+    return ids
+}
+
+/// The CGDirectDisplayID of the online Sidecar display, if one is present.
+///
+/// NOTE: Uses the CoreGraphics online list (which, unlike NSScreen, includes
+///   mirrored displays) so the Sidecar display is found whether it is extended
+///   or mirrored. A display qualifies if it carries the AirPlay vendor signature
+///   or matches a Sidecar-named NSScreen.
+func sidecarDisplayID() -> CGDirectDisplayID? {
+    let named = namedSidecarDisplayIDs()
+    var ids = [CGDirectDisplayID](repeating: 0, count: 16)
+    var count: UInt32 = 0
+    guard CGGetOnlineDisplayList(16, &ids, &count) == .success else { return nil }
+    for id in ids.prefix(Int(count)) where CGDisplayIsBuiltin(id) == 0 {
+        if CGDisplayVendorNumber(id) == AIRPLAY_VENDOR || named.contains(id) {
+            return id
         }
     }
     return nil
