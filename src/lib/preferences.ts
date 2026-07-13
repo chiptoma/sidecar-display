@@ -134,6 +134,23 @@ export function getBackend(): SidecarBackend {
 }
 
 /**
+ * The configured path to the `betterdisplaycli` binary.
+ *
+ * @returns The trimmed CLI path.
+ *
+ * NOTE: The virtual-screen reconnect uses this regardless of the selected
+ *   engine, since virtual screens are a BetterDisplay construct.
+ */
+export function getBetterDisplayCliPath(): string {
+  return getPreferenceValues<Preferences>().betterDisplayCliPath.trim();
+}
+
+/** Whether to reconnect virtual screens automatically after connecting. */
+export function shouldFixMirrorAfterConnect(): boolean {
+  return getPreferenceValues<Preferences>().fixMirrorAfterConnect === true;
+}
+
+/**
  * Builds the config every command runs on, auto-detecting the iPad if needed.
  *
  * @param backend - The engine, used to auto-detect the device when unset.

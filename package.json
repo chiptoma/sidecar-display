@@ -24,6 +24,13 @@
       "mode": "no-view"
     },
     {
+      "name": "reconnect-virtual-screens",
+      "title": "Reconnect Virtual Screens",
+      "subtitle": "Sidecar Display",
+      "description": "Cycle BetterDisplay virtual screens to fix an iPad that connected mirroring your main screen (macOS Sidecar's own mirror mode). This is the classic 'Reconnect virtual displays' fix.",
+      "mode": "no-view"
+    },
+    {
       "name": "auto-reconnect",
       "title": "Auto-Reconnect Sidecar",
       "subtitle": "Sidecar Display",
@@ -59,6 +66,15 @@
       "title": "Menu Bar",
       "label": "Show the connected device name next to the icon",
       "description": "Off keeps a constant-width icon that is friendlier to menu-bar managers like Bartender. On shows the device name when connected.",
+      "default": false
+    },
+    {
+      "name": "fixMirrorAfterConnect",
+      "type": "checkbox",
+      "required": false,
+      "title": "Fix Mirroring",
+      "label": "Reconnect virtual screens after connecting",
+      "description": "If the iPad connects showing a mirror of your main screen (macOS Sidecar's own mirror mode), automatically run the virtual-screen reconnect afterwards. This briefly reshuffles the desktop each connect. Leave off to trigger it manually with the Reconnect Virtual Screens command.",
       "default": false
     },
     {

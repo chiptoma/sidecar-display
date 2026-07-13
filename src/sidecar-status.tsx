@@ -12,9 +12,10 @@
 import { getPreferenceValues, Icon, MenuBarExtra, openExtensionPreferences } from "@raycast/api";
 import { useEffect, useState } from "react";
 
-import { buildConfig, getBackend } from "./lib/preferences";
+import { buildConfig, getBackend, getBetterDisplayCliPath } from "./lib/preferences";
 import { connectSidecar, disconnectSidecar, ensureDisplayMode, isConnected } from "./lib/sidecar";
 import { loadSelectedDevice, recordIntent, saveSelectedDevice } from "./lib/state";
+import { reconnectVirtualScreens } from "./lib/virtualscreens";
 
 import type { SidecarDevice } from "./lib/backend";
 
@@ -137,6 +138,17 @@ export default function Command(): React.JSX.Element {
               onAction={() => connectDevice(device.name)}
             />
           ))}
+        </MenuBarExtra.Section>
+      )}
+
+      {model !== null && connected && (
+        <MenuBarExtra.Section>
+          <MenuBarExtra.Item
+            title="Reconnect Virtual Screens"
+            icon={Icon.ArrowClockwise}
+            tooltip="Fix an iPad that is mirroring your main screen (Sidecar's own mirror mode)"
+            onAction={() => reconnectVirtualScreens(getBetterDisplayCliPath())}
+          />
         </MenuBarExtra.Section>
       )}
 
