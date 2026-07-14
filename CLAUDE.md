@@ -42,11 +42,14 @@ forces extend (or mirror) without touching the main display.
   `SidecarConfig` (`readTuning`/`buildConfig`/`loadConfig`). Never hand-declare
   the preference shape; it is generated from `package.json` by `ray build`.
 - `src/lib/feedback.ts` — HUD/toast text from a `ModeOutcome`.
-- `src/*.ts(x)` — one thin command entry point each. No logic:
-  connect/disconnect/toggle (no-view), `auto-reconnect` (no-view, `interval`),
-  and `sidecar-status` (menu-bar). Purity split: only lib modules WITHOUT an
-  `@raycast/api` import (`betterdisplay`, `sidecar`, `keepalive`) are compiled by
-  `test:build`; keep testable logic there.
+- `src/*.ts(x)` — one thin command entry point each, no logic: connect /
+  disconnect (no-view), `auto-reconnect` (no-view, `interval`),
+  `reconnect-virtual-screens` ("Fix Mirroring", no-view), and `sidecar-status`
+  (menu-bar). Purity split: the lib modules WITHOUT an `@raycast/api` import
+  (`backend`, `betterdisplay`, `sidecar`, `keepalive`, `virtualscreens`) are the
+  ones compiled by `test:build` and unit-tested headlessly (the last via a stub
+  `betterdisplaycli`); keep testable logic there. `native` is also
+  `@raycast/api`-free but is validated on hardware.
 
 ## Invariants
 
