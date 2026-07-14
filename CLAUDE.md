@@ -17,12 +17,14 @@ forces extend (or mirror) without touching the main display.
   and return `null`; writes throw.
 - `src/lib/native.ts` — `createNativeBackend(helperPath)`, the engine over the
   bundled `sidecar-helper` binary (SidecarCore + CoreGraphics). No BetterDisplay.
-- `src/lib/virtualscreens.ts` — `reconnectVirtualScreens(cliPath)`: cycles
-  BetterDisplay virtual screens once to clear macOS Sidecar's own mirror mode
-  (invisible to CoreGraphics/`--mirror`). Engine-independent and always via
-  `betterdisplaycli`, since the mirror is an artifact of the BetterDisplay
-  virtual screen. Touches the main display, so it is single-shot and only run on
-  explicit request or the opt-in `fixMirrorAfterConnect`.
+- `src/lib/virtualscreens.ts` — `fixMirror(cliPath, method)`: clears macOS
+  Sidecar's own mirror mode (invisible to CoreGraphics/`--mirror`) by forcing a
+  display re-arrangement. Two methods: `reconfigure` (`perform --reconfigure`,
+  lighter, disconnects nothing) and `virtualscreen` (cycle the main virtual
+  screen by UUID, heavier, blanks the main display). Engine-independent and
+  always via `betterdisplaycli`, since the mirror is a BetterDisplay
+  virtual-screen artifact. Only run on explicit request or the opt-in
+  `fixMirrorAfterConnect`.
 - `native/sidecar-helper.swift` — the helper source; compiled to
   `assets/sidecar-helper` by `npm run build:helper` (gitignored, rebuilt on
   every `build`/`dev`). Identifies the Sidecar display by `NSScreen.localizedName`

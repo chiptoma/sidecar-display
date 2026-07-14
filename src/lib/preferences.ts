@@ -19,6 +19,7 @@ import { loadSelectedDevice } from "./state";
 import type { DisplayMode, SidecarBackend } from "./backend";
 import type { KeepAliveTuning } from "./keepalive";
 import type { SidecarConfig } from "./sidecar";
+import type { MirrorFixMethod } from "./virtualscreens";
 
 /** The tuning shared by every command, before a device is chosen. */
 export interface Tuning {
@@ -168,12 +169,23 @@ export function getBackend(): SidecarBackend {
 }
 
 /**
- * Whether to reconnect virtual screens automatically after a fresh connect.
+ * Whether to fix mirroring automatically after a fresh connect.
  *
  * @returns True only when the option is on and BetterDisplay is available.
  */
 export function shouldFixMirrorAfterConnect(): boolean {
   return getPreferenceValues<Preferences>().fixMirrorAfterConnect === true && betterDisplayAvailable();
+}
+
+/**
+ * The chosen method for clearing Sidecar's mirror mode.
+ *
+ * @returns `virtualscreen` when selected, otherwise `reconfigure` (default).
+ */
+export function getMirrorFixMethod(): MirrorFixMethod {
+  return getPreferenceValues<Preferences>().mirrorFixMethod === "virtualscreen"
+    ? "virtualscreen"
+    : "reconfigure";
 }
 
 /**

@@ -33,9 +33,9 @@
     },
     {
       "name": "reconnect-virtual-screens",
-      "title": "Reconnect Virtual Screens",
+      "title": "Fix Mirroring",
       "subtitle": "Sidecar Display",
-      "description": "Cycle the main BetterDisplay virtual screen to fix an iPad that connected mirroring your main screen (macOS Sidecar's own mirror mode). This is the classic \"Reconnect virtual displays\" fix, and needs BetterDisplay.",
+      "description": "Clear macOS Sidecar's own mirror mode when the iPad connects showing a copy of your main screen. Uses the chosen Mirror Fix Method (redetect displays, or reconnect the main virtual screen). Needs BetterDisplay.",
       "mode": "no-view"
     },
     {
@@ -74,9 +74,21 @@
       "type": "checkbox",
       "required": false,
       "title": "Fix Mirroring",
-      "label": "Reconnect the virtual screen on a fresh connect",
-      "description": "Cycles the main virtual screen only when the iPad newly attaches (not when re-running connect on an already-connected iPad), to clear macOS Sidecar's own mirror mode. That mirror mode is invisible to the display APIs, so this cannot detect it directly — it fires on every fresh connect. Requires BetterDisplay; ignored without it. Turn off to trigger it manually with the Reconnect Virtual Screens command.",
+      "label": "Fix mirroring on a fresh connect",
+      "description": "Clears macOS Sidecar's mirror mode only when the iPad newly attaches (not when re-running connect on an already-connected iPad). That mirror mode is invisible to the display APIs, so this cannot detect it directly — it fires on every fresh connect. Requires BetterDisplay; ignored without it. Turn off to trigger it manually with the Fix Mirroring command.",
       "default": true
+    },
+    {
+      "name": "mirrorFixMethod",
+      "type": "dropdown",
+      "required": false,
+      "title": "Mirror Fix Method",
+      "description": "How to clear Sidecar's mirror mode. Redetect displays is lighter (it disconnects nothing) but may not clear it on every setup. Reconnect virtual screen briefly blanks your main display but is the proven fix.",
+      "default": "reconfigure",
+      "data": [
+        { "title": "Redetect displays (lighter)", "value": "reconfigure" },
+        { "title": "Reconnect virtual screen (heavier, proven)", "value": "virtualscreen" }
+      ]
     },
     {
       "name": "displayMode",

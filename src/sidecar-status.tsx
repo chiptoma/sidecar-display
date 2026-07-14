@@ -17,11 +17,12 @@ import {
   buildConfig,
   getBackend,
   getBetterDisplayCliPath,
+  getMirrorFixMethod,
   shouldFixMirrorAfterConnect,
 } from "./lib/preferences";
 import { connectSidecar, disconnectSidecar, ensureDisplayMode, isConnected } from "./lib/sidecar";
 import { loadSelectedDevice, recordIntent, saveSelectedDevice } from "./lib/state";
-import { reconnectVirtualScreens } from "./lib/virtualscreens";
+import { fixMirror } from "./lib/virtualscreens";
 
 import type { SidecarDevice } from "./lib/backend";
 
@@ -58,7 +59,7 @@ async function connectDevice(name: string): Promise<void> {
   await recordIntent("connected");
   const outcome = await connectSidecar(getBackend(), buildConfig(name));
   if (shouldFixMirrorAfterConnect() && outcome.linkEstablished === true) {
-    await reconnectVirtualScreens(getBetterDisplayCliPath());
+    await fixMirror(getBetterDisplayCliPath(), getMirrorFixMethod());
   }
 }
 
@@ -155,10 +156,10 @@ export default function Command(): React.JSX.Element {
       {model !== null && connected && model.canReconnectVirtual && (
         <MenuBarExtra.Section>
           <MenuBarExtra.Item
-            title="Reconnect Virtual Screens"
+            title="Fix Mirroring"
             icon={Icon.ArrowClockwise}
             tooltip="Fix an iPad that is mirroring your main screen (Sidecar's own mirror mode)"
-            onAction={() => reconnectVirtualScreens(getBetterDisplayCliPath())}
+            onAction={() => fixMirror(getBetterDisplayCliPath(), getMirrorFixMethod())}
           />
         </MenuBarExtra.Section>
       )}

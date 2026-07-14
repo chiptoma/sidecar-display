@@ -1,16 +1,18 @@
 // =============================================================================
-// VIRTUAL SCREEN RECONNECT
-// Cycles BetterDisplay virtual screens to re-trigger the display arrangement.
+// MIRROR FIX
+// Re-triggers the display arrangement to clear Sidecar's own mirror mode.
 // -----------------------------------------------------------------------------
 // Context: When the iPad connects, macOS Sidecar can bring it up mirroring at
-//   the Sidecar layer — invisible to CoreGraphics and to `--mirror`. On a Mac
-//   whose main display is a BetterDisplay virtual screen, disconnecting and
-//   reconnecting that virtual screen forces macOS to redo the arrangement, and
-//   the iPad lands as a separate (extended) display. This is the long-standing
-//   "Reconnect virtual displays" fix, done through `betterdisplaycli`.
-// WARN: Cycling a virtual screen that is the main display briefly blanks and
-//   rearranges the desktop. It is a single off/on cycle, never repeated, and is
-//   only ever run when the user asks for it (a command) or opts in.
+//   the Sidecar layer — invisible to CoreGraphics and to `--mirror`. Forcing
+//   macOS to redo the display arrangement clears it. Two methods, both through
+//   `betterdisplaycli`:
+//     - reconfigure: `perform --reconfigure` redetects all displays. Lighter —
+//       it does not disconnect anything.
+//     - virtualscreen: disconnect/reconnect the main virtual screen. Heavier
+//       (briefly blanks the main display) but is the long-standing "Reconnect
+//       virtual displays" fix.
+// WARN: The virtual-screen method blanks and rearranges the desktop; it is a
+//   single off/on cycle, never repeated, and only runs on request or opt-in.
 // =============================================================================
 
 import { execFile } from "node:child_process";
@@ -86,4 +88,32 @@ export async function reconnectVirtualScreens(cliPath: string, pauseMs = 1_500):
   await run(cliPath, ["set", ...selector, "--connected=off"]);
   await new Promise((resolve) => setTimeout(resolve, pauseMs));
   await run(cliPath, ["set", ...selector, "--connected=on"]);
+}
+
+/** How to clear Sidecar's mirror mode. */
+export type MirrorFixMethod = "reconfigure" | "virtualscreen";
+
+/**
+ * Redetects all displays, forcing macOS to redo the arrangement.
+ *
+ * @param cliPath - Path to the `betterdisplaycli` binary.
+ *
+ * NOTE: Lighter than the virtual-screen cycle — it disconnects nothing.
+ */
+export async function reconfigureDisplays(cliPath: string): Promise<void> {
+  await run(cliPath, ["perform", "--reconfigure"]);
+}
+
+/**
+ * Clears Sidecar's mirror mode using the chosen method.
+ *
+ * @param cliPath - Path to the `betterdisplaycli` binary.
+ * @param method  - `reconfigure` (lighter) or `virtualscreen` (heavier).
+ */
+export async function fixMirror(cliPath: string, method: MirrorFixMethod): Promise<void> {
+  if (method === "virtualscreen") {
+    await reconnectVirtualScreens(cliPath);
+  } else {
+    await reconfigureDisplays(cliPath);
+  }
 }
