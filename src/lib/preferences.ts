@@ -7,9 +7,8 @@
 //   text, and leaves optional fields undefined, so both are normalised here.
 // =============================================================================
 
-import { environment, getPreferenceValues } from "@raycast/api";
+import { getPreferenceValues } from "@raycast/api";
 import { existsSync } from "node:fs";
-import { join } from "node:path";
 
 import { createBetterDisplayBackend } from "./betterdisplay";
 import { createNativeBackend } from "./native";
@@ -158,7 +157,7 @@ export function betterDisplayAvailable(): boolean {
  */
 export function getBackend(): SidecarBackend {
   const prefs = getPreferenceValues<Preferences>();
-  const native = () => createNativeBackend(join(environment.assetsPath, "sidecar-helper"));
+  const native = () => createNativeBackend();
   const betterDisplay = () => createBetterDisplayBackend(getBetterDisplayCliPath());
 
   if (prefs.backend === "native") {

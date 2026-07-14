@@ -16,7 +16,7 @@ Pick one with the **Engine** preference:
 
 - **Automatic** (default) — uses BetterDisplay when its CLI is installed, otherwise Native.
 - **BetterDisplay** — drives the `betterdisplaycli` binary. Proven and low-maintenance, but requires the BetterDisplay app to be installed and running.
-- **Native (no dependency)** — a small bundled `sidecar-helper` binary that connects/disconnects via the private `SidecarCore` framework and controls mirroring via public CoreGraphics. No BetterDisplay needed.
+- **Native (no dependency)** — a small Swift helper (compiled from source at build time, no bundled binary) that connects/disconnects via the private `SidecarCore` framework and controls mirroring via public CoreGraphics. No BetterDisplay needed.
 
 The native engine relies on a private Apple framework, so a future macOS update could change it (it is validated on macOS 26). If a native command starts failing after an OS update, switch back to BetterDisplay and the helper can be patched. Both engines honour the same safety guarantees.
 
@@ -25,7 +25,7 @@ The native engine relies on a private Apple framework, so a future macOS update 
 - macOS with Sidecar support, and an iPad signed in to the same Apple ID
 - Raycast
 - For the **BetterDisplay** engine: [BetterDisplay](https://github.com/waydabber/BetterDisplay) running with CLI integration enabled (on by default) — `brew install --cask betterdisplay`. Tested against **BetterDisplay 4.3.5** with Pro enabled; non-Pro is unverified.
-- For the **Native** engine: nothing extra at runtime. The helper is compiled from `native/sidecar-helper.swift` by `npm run build` / `npm run dev` (needs `swiftc`, which ships with the Xcode Command Line Tools).
+- For the **Native** engine: nothing extra at runtime. The helper is compiled from Swift source in `swift/` by `npm run build` / `npm run dev` via Raycast's [`extensions-swift-tools`](https://github.com/raycast/extensions-swift-tools), which needs a full **Xcode** install (not just the Command Line Tools).
 
 ## Commands
 

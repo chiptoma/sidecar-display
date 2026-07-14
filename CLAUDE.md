@@ -15,8 +15,8 @@ forces extend (or mirror) without touching the main display.
 - `src/lib/betterdisplay.ts` — `createBetterDisplayBackend(cliPath)`, the engine
   over `betterdisplaycli`. Reads tolerate rejection (`Failed.` on stderr, exit 1)
   and return `null`; writes throw.
-- `src/lib/native.ts` — `createNativeBackend(helperPath)`, the engine over the
-  bundled `sidecar-helper` binary (SidecarCore + CoreGraphics). No BetterDisplay.
+- `src/lib/native.ts` — `createNativeBackend()`, the engine over the `@raycast`
+  Swift functions in `swift/` (SidecarCore + CoreGraphics). No BetterDisplay.
 - `src/lib/virtualscreens.ts` — `reconnectVirtualScreens(cliPath)`: clears macOS
   Sidecar's own mirror mode (invisible to CoreGraphics/`--mirror`) by cycling the
   main virtual screen by UUID, which forces a display re-arrangement. Tolerates a
@@ -25,12 +25,15 @@ forces extend (or mirror) without touching the main display.
   BetterDisplay virtual-screen artifact. Only run on explicit request or the
   opt-in `fixMirrorAfterConnect`. (`perform --reconfigure` was tried as a lighter
   alternative and does not clear this mirror.)
-- `native/sidecar-helper.swift` — the helper source; compiled to
-  `assets/sidecar-helper` by `npm run build:helper` (gitignored, rebuilt on
-  every `build`/`dev`). Identifies the Sidecar display by `NSScreen.localizedName`
-  containing "Sidecar"/"AirPlay"; connect/disconnect via runtime-dispatched
-  SidecarCore selectors; extend/mirror via `CGConfigureDisplayMirrorOfDisplay`
-  keeping the current main as master.
+- `swift/` — the native helper as a Swift Package compiled by `ray build` via
+  `extensions-swift-tools` (needs full Xcode; no binary is committed, `.build/`
+  is gitignored). Its `@raycast` functions (`Sources/Sidecar/Exports.swift`) are
+  imported from TypeScript as `swift:../../swift`; the SidecarCore/CoreGraphics
+  logic lives in `Sources/Sidecar/SidecarBridge.swift`. Identifies the Sidecar
+  display by the AirPlay vendor signature or a "Sidecar"/"AirPlay"
+  `NSScreen.localizedName`; connect/disconnect via runtime-dispatched SidecarCore
+  selectors; extend/mirror via `CGConfigureDisplayMirrorOfDisplay` keeping the
+  current main as master.
 - `src/lib/sidecar.ts` — display/link orchestration. Takes a `SidecarBackend`.
   Pure Node, no `@raycast/api` import, so tests exercise it with a mock backend
   (`test/orchestration.js`) or a real engine.

@@ -1,24 +1,21 @@
 // =============================================================================
 // NATIVE BACKEND
-// A SidecarBackend implemented over the bundled `sidecar-helper` binary.
+// A SidecarBackend implemented over the bundled Swift helper.
 // -----------------------------------------------------------------------------
-// Context: No BetterDisplay dependency. The helper connects/disconnects via the
-//   private SidecarCore framework and reads/sets mirror state via public
-//   CoreGraphics. macOS runs one Sidecar session at a time, so link and display
-//   state are keyed off "the Sidecar display" rather than a specific device.
+// Context: No BetterDisplay dependency. The Swift functions (compiled from
+//   swift/ by extensions-swift-tools) connect/disconnect via the private
+//   SidecarCore framework and read/set mirror state via public CoreGraphics.
+//   macOS runs one Sidecar session at a time, so link and display state are
+//   keyed off "the Sidecar display" rather than a specific device.
 // WARN: The helper never reassigns the main display and never disconnects a
 //   display; it only reconfigures the Sidecar display's mirror state.
 // =============================================================================
 
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
+import { connect, disconnect, extend, listDevices, mirror, status } from "swift:../../swift";
 
 import { SidecarError } from "./backend";
 
 import type { SidecarBackend, SidecarDevice } from "./backend";
-
-const execFileAsync = promisify(execFile);
-const HELPER_TIMEOUT_MS = 25_000;
 
 /** The Sidecar display's presence and state, as the helper reports it. */
 interface Status {
@@ -28,92 +25,72 @@ interface Status {
 }
 
 /**
- * Runs the helper and returns trimmed stdout, surfacing its stderr on failure.
+ * Invokes a Swift helper function, wrapping any failure as a SidecarError.
  *
- * @param helperPath - Path to the compiled `sidecar-helper` binary.
- * @param args       - Command and arguments.
- * @returns Trimmed stdout.
+ * @param label - Short action name for the error message.
+ * @param fn    - The Swift call to run.
+ * @returns Whatever the Swift function resolves to.
  */
-async function run(helperPath: string, args: readonly string[]): Promise<string> {
+async function call<T>(label: string, fn: () => Promise<T>): Promise<T> {
   try {
-    const { stdout } = await execFileAsync(helperPath, [...args], { timeout: HELPER_TIMEOUT_MS });
-    return stdout.trim();
+    return await fn();
   } catch (cause) {
-    const stderr = (cause as { stderr?: unknown }).stderr;
-    const detail =
-      typeof stderr === "string" && stderr.trim() !== ""
-        ? stderr.trim()
-        : cause instanceof Error
-          ? cause.message
-          : String(cause);
-    throw new SidecarError(`sidecar-helper ${args.join(" ")} failed: ${detail}`);
+    const detail = cause instanceof Error ? cause.message : String(cause);
+    throw new SidecarError(`native ${label} failed: ${detail}`);
   }
 }
 
 /**
- * Reads the Sidecar display status.
+ * Reads and normalises the Sidecar display status.
  *
- * @param helperPath - Path to the helper binary.
  * @returns Whether a Sidecar display is present and its main/mirror state.
  */
-async function readStatus(helperPath: string): Promise<Status> {
-  const raw = await run(helperPath, ["status"]);
-  let parsed: Partial<Status>;
-  try {
-    parsed = JSON.parse(raw) as Partial<Status>;
-  } catch {
-    throw new SidecarError(`sidecar-helper status returned unparseable output: ${raw.slice(0, 120)}`);
-  }
-  return { present: parsed.present === true, main: parsed.main === true, mirrored: parsed.mirrored === true };
+async function readStatus(): Promise<Status> {
+  const raw = await call("read status", () => status());
+  return { present: raw.present === true, main: raw.main === true, mirrored: raw.mirrored === true };
 }
 
 /**
- * Builds a SidecarBackend backed by the native helper.
+ * Builds a SidecarBackend backed by the native Swift helper.
  *
- * @param helperPath - Path to the compiled `sidecar-helper` binary.
  * @returns The Native engine.
  */
-export function createNativeBackend(helperPath: string): SidecarBackend {
+export function createNativeBackend(): SidecarBackend {
   return {
     async listDevices(): Promise<readonly SidecarDevice[]> {
-      const raw = await run(helperPath, ["list"]);
-      let parsed: { devices?: unknown };
-      try {
-        parsed = JSON.parse(raw) as { devices?: unknown };
-      } catch {
-        throw new SidecarError(`sidecar-helper list returned unparseable output: ${raw.slice(0, 120)}`);
-      }
-      const names = Array.isArray(parsed.devices)
-        ? parsed.devices.filter((device): device is string => typeof device === "string")
-        : [];
+      const names = await call("list devices", () => listDevices());
       // Native has no separate UUID; the device name is the stable identifier.
-      return names.map((name) => ({ name, uuid: name }));
+      return names
+        .filter((name): name is string => typeof name === "string")
+        .map((name) => ({ name, uuid: name }));
     },
 
     async isConnected(): Promise<boolean> {
-      return (await readStatus(helperPath)).present;
+      return (await readStatus()).present;
     },
 
     async setConnected(ipadName: string, connected: boolean): Promise<void> {
-      await run(helperPath, [connected ? "connect" : "disconnect", ipadName]);
+      await call(connected ? "connect" : "disconnect", () =>
+        connected ? connect(ipadName) : disconnect(ipadName),
+      );
     },
 
     async readMirror(): Promise<boolean | null> {
-      const status = await readStatus(helperPath);
-      return status.present ? status.mirrored : null;
+      const state = await readStatus();
+      return state.present ? state.mirrored : null;
     },
 
     async isIpadMain(): Promise<boolean> {
-      const status = await readStatus(helperPath);
-      return status.present && status.main;
+      const state = await readStatus();
+      return state.present && state.main;
     },
 
     async extend(): Promise<void> {
-      await run(helperPath, ["extend"]);
+      await call("extend", () => extend());
     },
 
     async mirrorToMain(): Promise<void> {
-      await run(helperPath, ["mirror"]);
+      await call("mirror", () => mirror());
     },
   };
 }

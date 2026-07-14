@@ -167,9 +167,8 @@
     "typescript": "^5.8.2"
   },
   "scripts": {
-    "build:helper": "swiftc native/sidecar-helper.swift -o assets/sidecar-helper",
-    "build": "npm run build:helper && ray build && npm run typecheck",
-    "dev": "npm run build:helper && ray develop",
+    "build": "ray build && npm run typecheck",
+    "dev": "ray develop",
     "typecheck": "tsc --noEmit",
     "lint": "ray lint",
     "fix-lint": "ray lint --fix",
