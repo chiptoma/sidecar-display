@@ -1,11 +1,16 @@
 # Sidecar Display
 
-Raycast extension that connects an iPad over Sidecar via `betterdisplaycli` and
-forces extend (or mirror) without touching the main display.
+Raycast extension that connects an iPad over Sidecar and forces extend (or
+mirror) without touching the main display. Two engines: BetterDisplay
+(`betterdisplaycli`) and a native Swift helper (`swift/`).
 
-## Language rules
+## Conventions
 
-@~/.claude/rules/lang/typescript.md
+TypeScript is strict (no `any`, explicit return types, `interface` for object
+shapes, functions ≤ 50 lines, files ≤ 300). Every source file opens with an
+80-char banner and exports carry JSDoc. The full conventions, the safety
+invariants, and the release process live in
+[CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## Architecture
 

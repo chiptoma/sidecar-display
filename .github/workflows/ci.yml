@@ -4,8 +4,10 @@
 # Lint, type-check/build, and run the hardware-free unit tests on every push.
 # -----------------------------------------------------------------------------
 # NOTE: The safety and hardware suites need BetterDisplay (and an iPad) and
-#   cannot run on hosted runners, so CI covers lint, build, and the pure
-#   keep-alive logic only. Run `npm run test:hardware` locally before release.
+#   cannot run on hosted runners, so CI covers lint, build, and the pure logic
+#   only. Run `npm run test:hardware` locally before release.
+# NOTE: `build` compiles the Swift package via extensions-swift-tools, so this
+#   runs on macOS with the runner's default Xcode.
 # =============================================================================
 
 name: CI
@@ -15,6 +17,11 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+
+# Only keep the latest run per ref; cancel superseded ones.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   check:
@@ -28,6 +35,13 @@ jobs:
         with:
           node-version: 22
           cache: npm
+
+      - name: Cache SwiftPM
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/org.swift.swiftpm
+          key: swiftpm-${{ runner.os }}-${{ hashFiles('swift/Package.swift') }}
+          restore-keys: swiftpm-${{ runner.os }}-
 
       - name: Install dependencies
         run: npm ci
