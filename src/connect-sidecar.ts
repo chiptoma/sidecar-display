@@ -29,13 +29,22 @@ export default async function command(): Promise<void> {
     const config = await loadConfig(backend);
     await showToast({ style: Toast.Style.Animated, title: `Connecting ${config.ipadName}…` });
 
-    const outcome = await connectSidecar(backend, config);
+    // Record intent before the attempt so a connect that then fails is still
+    // treated as "wanted" by auto-reconnect, matching disconnect and the menu.
     await recordIntent("connected");
+    const outcome = await connectSidecar(backend, config);
 
     // Only fix mirroring on a genuine fresh connect — not when re-running the
     // command on an already-connected iPad — so it never reshuffles needlessly.
+    // The connect already succeeded here, so a failing fix is reported on its
+    // own rather than as a connect failure.
     if (shouldFixMirrorAfterConnect() && outcome.linkEstablished === true) {
-      await reconnectVirtualScreens(getBetterDisplayCliPath());
+      try {
+        await reconnectVirtualScreens(getBetterDisplayCliPath());
+      } catch (fixError) {
+        await reportError(fixError, "Connected, but could not fix mirroring");
+        return;
+      }
     }
 
     await showHUD(describeOutcome(config, outcome));

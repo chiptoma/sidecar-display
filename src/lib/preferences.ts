@@ -88,10 +88,14 @@ function parseSecondsMs(
  */
 export function readKeepAliveTuning(): KeepAliveTuning {
   const prefs = getPreferenceValues<Preferences>();
+  const backoffBaseMs = parseSecondsMs(prefs.backoffBaseSeconds, 15, 1, 3_600);
+  // The cap is a ceiling on the doubling backoff, so it can never sit below the
+  // base — otherwise every attempt would collapse to the (smaller) cap.
+  const backoffCapMs = Math.max(parseSecondsMs(prefs.backoffCapSeconds, 60, 1, 3_600), backoffBaseMs);
   return {
     fastAttempts: parseIntClamped(prefs.fastReconnectAttempts, 3, 1, 100),
-    backoffBaseMs: parseSecondsMs(prefs.backoffBaseSeconds, 15, 1, 3_600),
-    backoffCapMs: parseSecondsMs(prefs.backoffCapSeconds, 60, 1, 3_600),
+    backoffBaseMs,
+    backoffCapMs,
     dormantRetryMs: parseSecondsMs(prefs.slowRetrySeconds, 300, 30, 86_400),
     wakeGapMs: parseSecondsMs(prefs.wakeThresholdSeconds, 120, 30, 3_600),
   };

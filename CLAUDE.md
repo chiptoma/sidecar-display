@@ -53,16 +53,27 @@ forces extend (or mirror) without touching the main display.
 - **Never write `--main`.** Changing the main display relocates the user's
   windows. Mirroring must always use the existing main display as the master
   and the iPad as the target; the reverse direction promotes the iPad to master.
-- **Never disconnect or power-cycle a display.** No `--connected=` writes. An
-  earlier "reconnect virtual screens" mitigation cycled the main display (which
-  on this user's setup *is* a virtual screen) and scrambled every window. It was
-  removed. The entire mutation surface is: the Sidecar link, `--mirror=off` on
-  the iPad, and `--mirror=on` with the current main as master.
-- **Gate every window-moving write on a stable read.** `awaitStableMirrorState`
-  requires two consecutive equal, non-null samples. A flaky or phantom Sidecar
-  connection never passes, so it never reaches a write. `get --sidecarList`
+- **The mode path never disconnects or power-cycles a display.** The
+  connect/disconnect/mode orchestration in `sidecar.ts` issues no `--connected=`
+  writes on any display; an earlier mitigation that cycled displays *inside* the
+  mode path scrambled every window and was removed. The one sanctioned
+  `--connected=off`/`on` cycle is the explicit **Fix Mirroring** feature
+  (`virtualscreens.ts`): scoped to the main virtual screen by UUID, guaranteed to
+  reconnect (a rejected disconnect is tolerated, the reconnect always runs), and
+  triggered only on the `fixMirrorAfterConnect` opt-in or the manual command —
+  never from inside converge. The mode path's entire mutation surface is: the
+  Sidecar link, `--mirror=off` on the iPad, and `--mirror=on` with the current
+  main as master.
+- **Never write for an absent display; converge and hold; never trust one read.**
+  `ensureDisplayMode` writes only when the iPad's display reads *present*
+  (`readMirror` non-null) and disagrees with the target; an absent or phantom
+  display (null) is never written, and the call throws at the deadline having
+  changed nothing. Once present, the mode is re-asserted on every disagreeing
+  read and reported `settled` only after it reads correct `REQUIRED_STABLE_READS`
+  (3) times running — outlasting the ~1s macOS spends rearranging a freshly
+  connected display (it often comes up mirrored, then flips). `get --sidecarList`
   lists paired-but-maybe-absent devices, so a resolved name is not proof of
-  reachability — the gate is what makes the absent-device case safe.
+  reachability — the present-read requirement is what makes the absent case safe.
 - **If the iPad is the main display, do nothing to its mode and report it.**
 - **Never trust a single read after a write.** Poll until the state settles or
   the timeout expires.

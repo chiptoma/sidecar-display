@@ -9,7 +9,7 @@
 
 import { LocalStorage } from "@raycast/api";
 
-import { INITIAL_STATE } from "./keepalive";
+import { INITIAL_STATE, stateForIntent } from "./keepalive";
 
 import type { KeepAliveState, LinkIntent } from "./keepalive";
 
@@ -58,7 +58,7 @@ export async function saveKeepAliveState(state: KeepAliveState): Promise<void> {
  *   called from every manual connect and disconnect, and from the menu bar.
  */
 export async function recordIntent(intent: LinkIntent): Promise<void> {
-  await saveKeepAliveState({ intent, failedAttempts: 0, lastAttemptAtMs: 0, lastTickAtMs: 0 });
+  await saveKeepAliveState(stateForIntent(intent));
 }
 
 /**

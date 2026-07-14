@@ -96,11 +96,11 @@ On connect, the extension:
 
 If the mode does not settle, the extension reports it and stops. It does **not** cycle, disconnect, or otherwise touch any other display to force the issue.
 
-### The main display is never written, and no display is ever cycled
+### The main display is never written, and the connect path never cycles a display
 
 Two hard invariants:
 
-- The extension never issues a `--main` write and never disconnects or power-cycles any display. Its entire mutation surface is: connect/disconnect the Sidecar link, detach the iPad from a mirror set, and add the iPad to the main display's mirror set.
+- The extension never issues a `--main` write. The connect/disconnect/mode path never disconnects or power-cycles any display; its entire mutation surface is: connect/disconnect the Sidecar link, detach the iPad from a mirror set, and add the iPad to the main display's mirror set. The one place a display is deliberately cycled is the separate, opt-in **Fix Mirroring** feature described above, which reconnects the main virtual screen by UUID and always brings it back.
 - Mirroring always uses the **existing main display as the master** with the iPad as the target. The reverse direction promotes the iPad to master and macOS moves the main display — and every window — onto it. Both mode writes are refused outright when the iPad is itself the main display.
 
 An earlier version reconnected virtual screens as a "mitigation" when a mode would not settle. On a setup where a virtual screen *is* the main display, that disconnected the main display and scrambled every window. It has been removed entirely.

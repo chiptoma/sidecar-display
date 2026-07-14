@@ -5,13 +5,15 @@
 // Context: Rendered by Raycast on its background interval and whenever an action
 //   re-runs the command. Shows every paired Sidecar device, marks the connected
 //   one, and lets you connect, disconnect, or switch extend/mirror.
-// WARN: Actions go through the same guarded orchestration as the commands, so
-//   the main display is never written and no display is ever cycled.
+// WARN: Connect/disconnect/extend/mirror go through the same guarded
+//   orchestration as the commands — the main display is never written. Only the
+//   explicit Fix Mirroring action cycles a display (the main virtual screen).
 // =============================================================================
 
-import { getPreferenceValues, Icon, MenuBarExtra, openExtensionPreferences } from "@raycast/api";
+import { getPreferenceValues, Icon, MenuBarExtra, openExtensionPreferences, showHUD } from "@raycast/api";
 import { useEffect, useState } from "react";
 
+import { reportError } from "./lib/feedback";
 import {
   betterDisplayAvailable,
   buildConfig,
@@ -83,6 +85,26 @@ async function setMode(name: string, mode: "extend" | "mirror"): Promise<void> {
 }
 
 /**
+ * Runs a menu action, surfacing success as a HUD and failure as a toast.
+ *
+ * @param action     - The async work to perform.
+ * @param successHUD - Message shown when the action completes.
+ * @param errorTitle - Toast headline shown when the action throws.
+ *
+ * NOTE: Menu-bar actions have no ambient error surface, so without this a failed
+ *   click would be silent and leak an unhandled rejection. This mirrors the
+ *   try/catch + feedback every command entry point uses.
+ */
+async function runAction(action: () => Promise<void>, successHUD: string, errorTitle: string): Promise<void> {
+  try {
+    await action();
+    await showHUD(successHUD);
+  } catch (error) {
+    await reportError(error, errorTitle);
+  }
+}
+
+/**
  * The menu-bar command.
  *
  * @returns The rendered menu-bar item.
@@ -93,7 +115,7 @@ export default function Command(): React.JSX.Element {
   useEffect(() => {
     loadStatus()
       .then(setModel)
-      .catch(() => setModel({ devices: [], selected: "", connected: false }));
+      .catch(() => setModel({ devices: [], selected: "", connected: false, canReconnectVirtual: false }));
   }, []);
 
   const connected = model?.connected ?? false;
@@ -116,24 +138,40 @@ export default function Command(): React.JSX.Element {
               <MenuBarExtra.Item
                 title="Extend"
                 icon={Icon.AppWindowGrid2x2}
-                onAction={() => setMode(model.selected, "extend")}
+                onAction={() =>
+                  runAction(() => setMode(model.selected, "extend"), "Sidecar extended", "Could not extend")
+                }
               />
               <MenuBarExtra.Item
                 title="Mirror"
                 icon={Icon.Duplicate}
-                onAction={() => setMode(model.selected, "mirror")}
+                onAction={() =>
+                  runAction(() => setMode(model.selected, "mirror"), "Sidecar mirrored", "Could not mirror")
+                }
               />
               <MenuBarExtra.Item
                 title="Disconnect"
                 icon={Icon.MinusCircle}
-                onAction={() => disconnectDevice(model.selected)}
+                onAction={() =>
+                  runAction(
+                    () => disconnectDevice(model.selected),
+                    "Sidecar disconnected",
+                    "Could not disconnect Sidecar",
+                  )
+                }
               />
             </>
           ) : (
             <MenuBarExtra.Item
               title="Connect"
               icon={Icon.Monitor}
-              onAction={() => connectDevice(model.selected)}
+              onAction={() =>
+                runAction(
+                  () => connectDevice(model.selected),
+                  "Sidecar connected",
+                  "Could not connect Sidecar",
+                )
+              }
             />
           )}
         </MenuBarExtra.Section>
@@ -146,7 +184,9 @@ export default function Command(): React.JSX.Element {
               key={device.uuid}
               title={device.name}
               icon={device.name === model.selected ? Icon.Checkmark : Icon.Circle}
-              onAction={() => connectDevice(device.name)}
+              onAction={() =>
+                runAction(() => connectDevice(device.name), "Sidecar connected", "Could not connect Sidecar")
+              }
             />
           ))}
         </MenuBarExtra.Section>
@@ -158,7 +198,13 @@ export default function Command(): React.JSX.Element {
             title="Fix Mirroring"
             icon={Icon.ArrowClockwise}
             tooltip="Fix an iPad that is mirroring your main screen (Sidecar's own mirror mode)"
-            onAction={() => reconnectVirtualScreens(getBetterDisplayCliPath())}
+            onAction={() =>
+              runAction(
+                () => reconnectVirtualScreens(getBetterDisplayCliPath()),
+                "Mirroring fixed",
+                "Could not fix mirroring",
+              )
+            }
           />
         </MenuBarExtra.Section>
       )}
