@@ -42,7 +42,9 @@ Bind Connect and Disconnect to hotkeys in Raycast, or drive everything from the 
 
 macOS Sidecar has its own "Mirror / Use as Separate Display" mode that is **separate from display mirroring** and invisible to CoreGraphics and BetterDisplay. On a Mac whose main display is a BetterDisplay virtual screen, the iPad can connect showing a copy of your main screen even though every display API reports it as extended — so **Extend / mirror mode cannot fix it** (there is nothing mirrored, as far as those APIs can tell).
 
-The reliable fix is the long-standing **Reconnect Virtual Screens** action: cycling the virtual screen forces macOS to redo the arrangement, and the iPad lands as a separate display. Run it from the command, from the menu bar, or enable **Fix Mirroring** to run it automatically after every connect. This step uses `betterdisplaycli` regardless of the selected engine, because the mirroring is a side effect of having a BetterDisplay virtual screen in the first place.
+The reliable fix is the long-standing **Reconnect Virtual Screens** action: cycling the virtual screen forces macOS to redo the arrangement, and the iPad lands as a separate display. Run it from the command, from the menu bar, or enable **Fix Mirroring** to run it automatically. This step uses `betterdisplaycli` regardless of the selected engine, because the mirroring is a side effect of having a BetterDisplay virtual screen in the first place.
+
+**Fix Mirroring** runs only on a **fresh connect** — when the iPad newly attaches — not when you re-run connect on an already-connected iPad. Sidecar's mirror mode is invisible to the display APIs, so the extension cannot detect "it came up mirrored" and condition on it directly; instead it fires once per fresh connect, which matches the common case where the iPad mirrors every time it attaches. If your iPad only sometimes mirrors, leave the option off and use the manual command or menu-bar action when you need it.
 
 It briefly blanks and rearranges the desktop (it disconnects and reconnects the virtual screen that is your main display), so it is a single, deliberate cycle — never automatic-on-a-loop.
 
@@ -71,7 +73,7 @@ There is no on-wake event on macOS for extensions, so reconnection happens on th
 | Backoff Cap (seconds) | `60` | Longest wait the doubling backoff reaches during the fast phase. |
 | Slow Retry (seconds) | `300` | How often to retry once the fast attempts are spent and the iPad is still absent. |
 | Wake Threshold (seconds) | `120` | A gap this long between background ticks counts as the Mac having slept, so the next tick reconnects immediately. |
-| Fix Mirroring | *off* | Reconnect virtual screens automatically after connecting, to clear Sidecar's own mirror mode. Briefly reshuffles the desktop each connect. |
+| Fix Mirroring | *off* | Reconnect virtual screens automatically on a fresh connect, to clear Sidecar's own mirror mode. Briefly reshuffles the desktop. Fires only when the iPad newly attaches, not on re-runs. |
 | BetterDisplay CLI | `/opt/homebrew/bin/betterdisplaycli` | Path to the binary. |
 | Settle Timeout | `6` | Seconds to wait for a display change to take effect. Clamped to 2–60. |
 

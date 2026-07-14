@@ -32,7 +32,9 @@ export default async function command(): Promise<void> {
     const outcome = await connectSidecar(backend, config);
     await recordIntent("connected");
 
-    if (shouldFixMirrorAfterConnect()) {
+    // Only fix mirroring on a genuine fresh connect — not when re-running the
+    // command on an already-connected iPad — so it never reshuffles needlessly.
+    if (shouldFixMirrorAfterConnect() && outcome.linkEstablished === true) {
       await reconnectVirtualScreens(getBetterDisplayCliPath());
     }
 

@@ -73,8 +73,8 @@
       "type": "checkbox",
       "required": false,
       "title": "Fix Mirroring",
-      "label": "Reconnect virtual screens after connecting",
-      "description": "If the iPad connects showing a mirror of your main screen (macOS Sidecar's own mirror mode), automatically run the virtual-screen reconnect afterwards. This briefly reshuffles the desktop each connect. Leave off to trigger it manually with the Reconnect Virtual Screens command.",
+      "label": "Reconnect virtual screens on a fresh connect",
+      "description": "Runs the virtual-screen reconnect only when the iPad newly attaches (not when re-running connect on an already-connected iPad), to clear macOS Sidecar's own mirror mode. Note: that mirror mode is invisible to the display APIs, so this cannot detect it directly — it fires on every fresh connect. Leave off to trigger it manually with the Reconnect Virtual Screens command.",
       "default": false
     },
     {

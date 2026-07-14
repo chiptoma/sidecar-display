@@ -36,6 +36,8 @@ export interface ModeOutcome {
   readonly changed: boolean;
   readonly settled: boolean;
   readonly skippedReason?: string;
+  /** True only when this call newly attached the Sidecar link (a fresh connect). */
+  readonly linkEstablished?: boolean;
 }
 
 // -----------------------------------------------------------
@@ -179,6 +181,8 @@ export async function ensureDisplayMode(
  *   display write happens.
  */
 export async function connectSidecar(backend: SidecarBackend, config: SidecarConfig): Promise<ModeOutcome> {
+  let linkEstablished = false;
+
   if (!(await backend.isConnected(config.ipadName))) {
     await backend.setConnected(config.ipadName, true);
 
@@ -186,9 +190,11 @@ export async function connectSidecar(backend: SidecarBackend, config: SidecarCon
     if (!linked) {
       throw new SidecarError("Sidecar did not connect. Is the iPad awake and nearby?");
     }
+    linkEstablished = true;
   }
 
-  return ensureDisplayMode(backend, config);
+  const outcome = await ensureDisplayMode(backend, config);
+  return { ...outcome, linkEstablished };
 }
 
 /**

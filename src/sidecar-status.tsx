@@ -12,7 +12,12 @@
 import { getPreferenceValues, Icon, MenuBarExtra, openExtensionPreferences } from "@raycast/api";
 import { useEffect, useState } from "react";
 
-import { buildConfig, getBackend, getBetterDisplayCliPath } from "./lib/preferences";
+import {
+  buildConfig,
+  getBackend,
+  getBetterDisplayCliPath,
+  shouldFixMirrorAfterConnect,
+} from "./lib/preferences";
 import { connectSidecar, disconnectSidecar, ensureDisplayMode, isConnected } from "./lib/sidecar";
 import { loadSelectedDevice, recordIntent, saveSelectedDevice } from "./lib/state";
 import { reconnectVirtualScreens } from "./lib/virtualscreens";
@@ -48,7 +53,10 @@ async function loadStatus(): Promise<StatusModel> {
 async function connectDevice(name: string): Promise<void> {
   await saveSelectedDevice(name);
   await recordIntent("connected");
-  await connectSidecar(getBackend(), buildConfig(name));
+  const outcome = await connectSidecar(getBackend(), buildConfig(name));
+  if (shouldFixMirrorAfterConnect() && outcome.linkEstablished === true) {
+    await reconnectVirtualScreens(getBetterDisplayCliPath());
+  }
 }
 
 /**

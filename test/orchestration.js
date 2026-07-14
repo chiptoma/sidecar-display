@@ -104,18 +104,22 @@ async function main() {
     expect("mirror mode folds the iPad in", out.changed && out.settled && b.calls.join(",") === "mirrorToMain", b.calls.join(","));
   }
 
-  // Connect when already connected + extending: no link write, no mode write.
+  // Connect when already connected + extending: no link write, no mode write,
+  // and NOT flagged as a fresh connect (so the mirror fix must not fire).
   {
     const b = makeBackend({ connected: true, mirror: false });
     const out = await sc.connectSidecar(b, cfg("extend"));
     expect("connect when already connected writes nothing", !out.changed && b.calls.length === 0, b.calls.join(","));
+    expect("already-connected is not flagged as a fresh connect", out.linkEstablished !== true, JSON.stringify(out));
   }
 
-  // Connect when disconnected: link write, then settles the mode.
+  // Connect when disconnected: link write, then settles the mode, and IS flagged
+  // as a fresh connect (so the mirror fix may fire once).
   {
     const b = makeBackend({ connected: false, mirror: false });
-    await sc.connectSidecar(b, cfg("extend"));
+    const out = await sc.connectSidecar(b, cfg("extend"));
     expect("connect brings the link up", b.calls.includes("setConnected:true"), b.calls.join(","));
+    expect("fresh connect is flagged linkEstablished", out.linkEstablished === true, JSON.stringify(out));
   }
 
   // Across every scenario above, no mutation ever touched main or cycled a
