@@ -8,6 +8,7 @@
 // =============================================================================
 
 import { environment, getPreferenceValues } from "@raycast/api";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 
 import { createBetterDisplayBackend } from "./betterdisplay";
@@ -121,19 +122,6 @@ export function buildConfig(ipadName: string, overrides: Partial<Tuning> = {}): 
 }
 
 /**
- * Builds the engine selected in preferences.
- *
- * @returns The Native engine when chosen, otherwise the BetterDisplay engine.
- */
-export function getBackend(): SidecarBackend {
-  const prefs = getPreferenceValues<Preferences>();
-  if (prefs.backend === "native") {
-    return createNativeBackend(join(environment.assetsPath, "sidecar-helper"));
-  }
-  return createBetterDisplayBackend(prefs.betterDisplayCliPath.trim());
-}
-
-/**
  * The configured path to the `betterdisplaycli` binary.
  *
  * @returns The trimmed CLI path.
@@ -145,9 +133,47 @@ export function getBetterDisplayCliPath(): string {
   return getPreferenceValues<Preferences>().betterDisplayCliPath.trim();
 }
 
-/** Whether to reconnect virtual screens automatically after connecting. */
+/**
+ * Whether the `betterdisplaycli` binary is present.
+ *
+ * @returns True when the configured CLI path exists on disk.
+ *
+ * NOTE: Gates the BetterDisplay engine (under Automatic) and every
+ *   virtual-screen reconnect, which cannot work without BetterDisplay.
+ */
+export function betterDisplayAvailable(): boolean {
+  const path = getBetterDisplayCliPath();
+  return path !== "" && existsSync(path);
+}
+
+/**
+ * Builds the engine selected in preferences.
+ *
+ * @returns The chosen engine; under Automatic, BetterDisplay when its CLI is
+ *   present, otherwise Native.
+ */
+export function getBackend(): SidecarBackend {
+  const prefs = getPreferenceValues<Preferences>();
+  const native = () => createNativeBackend(join(environment.assetsPath, "sidecar-helper"));
+  const betterDisplay = () => createBetterDisplayBackend(getBetterDisplayCliPath());
+
+  if (prefs.backend === "native") {
+    return native();
+  }
+  if (prefs.backend === "betterdisplay") {
+    return betterDisplay();
+  }
+  // Automatic: prefer BetterDisplay when it is installed.
+  return betterDisplayAvailable() ? betterDisplay() : native();
+}
+
+/**
+ * Whether to reconnect virtual screens automatically after a fresh connect.
+ *
+ * @returns True only when the option is on and BetterDisplay is available.
+ */
 export function shouldFixMirrorAfterConnect(): boolean {
-  return getPreferenceValues<Preferences>().fixMirrorAfterConnect === true;
+  return getPreferenceValues<Preferences>().fixMirrorAfterConnect === true && betterDisplayAvailable();
 }
 
 /**

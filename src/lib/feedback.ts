@@ -17,18 +17,16 @@ import type { ModeOutcome, SidecarConfig } from "./sidecar";
  * @returns A single line suitable for a HUD.
  */
 export function describeOutcome(config: SidecarConfig, outcome: ModeOutcome): string {
-  const mode = config.mode === "mirror" ? "mirroring" : "extending";
+  const done = config.mode === "mirror" ? "mirrored" : "extended";
+  const verb = config.mode === "mirror" ? "mirror" : "extend";
 
   if (outcome.skippedReason !== undefined) {
     return `Sidecar connected — ${outcome.skippedReason}`;
   }
   if (!outcome.settled) {
-    return `Sidecar connected, but it is not ${mode}`;
+    return `Sidecar connected, but could not ${verb}`;
   }
-  if (!outcome.changed) {
-    return `Sidecar connected, already ${mode}`;
-  }
-  return `Sidecar connected, switched to ${mode}`;
+  return `Sidecar ${done}`;
 }
 
 /**

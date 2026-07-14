@@ -47,7 +47,7 @@ export default async function command(): Promise<void> {
     if (decision.action === "reconnect") {
       await connectSidecar(backend, config);
       if (environment.launchType === LaunchType.UserInitiated) {
-        await showHUD(`Reconnected ${config.ipadName}`);
+        await showHUD("Sidecar reconnected");
       }
     }
   } catch (error) {

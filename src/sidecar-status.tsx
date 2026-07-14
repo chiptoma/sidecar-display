@@ -13,6 +13,7 @@ import { getPreferenceValues, Icon, MenuBarExtra, openExtensionPreferences } fro
 import { useEffect, useState } from "react";
 
 import {
+  betterDisplayAvailable,
   buildConfig,
   getBackend,
   getBetterDisplayCliPath,
@@ -29,12 +30,14 @@ interface StatusModel {
   readonly devices: readonly SidecarDevice[];
   readonly selected: string;
   readonly connected: boolean;
+  readonly canReconnectVirtual: boolean;
 }
 
 /**
  * Gathers the current Sidecar picture for the menu.
  *
- * @returns Paired devices, the selected device, and whether it is connected.
+ * @returns Paired devices, the selected device, whether it is connected, and
+ *   whether the virtual-screen reconnect is available (BetterDisplay present).
  */
 async function loadStatus(): Promise<StatusModel> {
   const backend = getBackend();
@@ -42,7 +45,7 @@ async function loadStatus(): Promise<StatusModel> {
   const pinned = await loadSelectedDevice();
   const selected = pinned !== "" ? pinned : (devices[0]?.name ?? "");
   const connected = selected !== "" && (await isConnected(backend, buildConfig(selected)));
-  return { devices, selected, connected };
+  return { devices, selected, connected, canReconnectVirtual: betterDisplayAvailable() };
 }
 
 /**
@@ -149,7 +152,7 @@ export default function Command(): React.JSX.Element {
         </MenuBarExtra.Section>
       )}
 
-      {model !== null && connected && (
+      {model !== null && connected && model.canReconnectVirtual && (
         <MenuBarExtra.Section>
           <MenuBarExtra.Item
             title="Reconnect Virtual Screens"

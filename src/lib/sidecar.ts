@@ -132,7 +132,7 @@ export async function ensureDisplayMode(
         return {
           changed,
           settled: false,
-          skippedReason: "the iPad is the main display, so its mode was left untouched",
+          skippedReason: "the iPad is the main display, so its mode was left as-is",
         };
       }
 

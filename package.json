@@ -24,19 +24,19 @@
       "mode": "no-view"
     },
     {
-      "name": "reconnect-virtual-screens",
-      "title": "Reconnect Virtual Screens",
-      "subtitle": "Sidecar Display",
-      "description": "Cycle BetterDisplay virtual screens to fix an iPad that connected mirroring your main screen (macOS Sidecar's own mirror mode). This is the classic 'Reconnect virtual displays' fix.",
-      "mode": "no-view"
-    },
-    {
       "name": "auto-reconnect",
       "title": "Auto-Reconnect Sidecar",
       "subtitle": "Sidecar Display",
       "description": "Restore the Sidecar link after it drops (e.g. waking from sleep). Enable background refresh on this command to keep the iPad connected; run it manually to reconnect now.",
       "mode": "no-view",
       "interval": "1m"
+    },
+    {
+      "name": "reconnect-virtual-screens",
+      "title": "Reconnect Virtual Screens",
+      "subtitle": "Sidecar Display",
+      "description": "Cycle the main BetterDisplay virtual screen to fix an iPad that connected mirroring your main screen (macOS Sidecar's own mirror mode). This is the classic \"Reconnect virtual displays\" fix, and needs BetterDisplay.",
+      "mode": "no-view"
     },
     {
       "name": "sidecar-status",
@@ -52,9 +52,10 @@
       "type": "dropdown",
       "required": false,
       "title": "Engine",
-      "description": "BetterDisplay uses the betterdisplaycli binary (proven, needs the app running). Native uses a bundled helper with no external dependency, via macOS SidecarCore and CoreGraphics.",
-      "default": "betterdisplay",
+      "description": "Automatic uses BetterDisplay when its CLI is installed, otherwise the bundled Native helper. BetterDisplay drives betterdisplaycli (proven, needs the app). Native uses macOS SidecarCore and CoreGraphics with no dependency.",
+      "default": "auto",
       "data": [
+        { "title": "Automatic", "value": "auto" },
         { "title": "BetterDisplay", "value": "betterdisplay" },
         { "title": "Native (no dependency)", "value": "native" }
       ]
@@ -73,9 +74,9 @@
       "type": "checkbox",
       "required": false,
       "title": "Fix Mirroring",
-      "label": "Reconnect virtual screens on a fresh connect",
-      "description": "Runs the virtual-screen reconnect only when the iPad newly attaches (not when re-running connect on an already-connected iPad), to clear macOS Sidecar's own mirror mode. Note: that mirror mode is invisible to the display APIs, so this cannot detect it directly — it fires on every fresh connect. Leave off to trigger it manually with the Reconnect Virtual Screens command.",
-      "default": false
+      "label": "Reconnect the virtual screen on a fresh connect",
+      "description": "Cycles the main virtual screen only when the iPad newly attaches (not when re-running connect on an already-connected iPad), to clear macOS Sidecar's own mirror mode. That mirror mode is invisible to the display APIs, so this cannot detect it directly — it fires on every fresh connect. Requires BetterDisplay; ignored without it. Turn off to trigger it manually with the Reconnect Virtual Screens command.",
+      "default": true
     },
     {
       "name": "displayMode",
