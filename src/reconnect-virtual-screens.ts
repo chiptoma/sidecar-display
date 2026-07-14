@@ -6,8 +6,8 @@
 import { showHUD, showToast, Toast } from "@raycast/api";
 
 import { reportError } from "./lib/feedback";
-import { betterDisplayAvailable, getBetterDisplayCliPath, getMirrorFixMethod } from "./lib/preferences";
-import { fixMirror } from "./lib/virtualscreens";
+import { betterDisplayAvailable, getBetterDisplayCliPath } from "./lib/preferences";
+import { reconnectVirtualScreens } from "./lib/virtualscreens";
 
 /**
  * Clears Sidecar's mirror mode using the chosen method.
@@ -28,7 +28,7 @@ export default async function command(): Promise<void> {
 
   try {
     await showToast({ style: Toast.Style.Animated, title: "Fixing mirroring…" });
-    await fixMirror(getBetterDisplayCliPath(), getMirrorFixMethod());
+    await reconnectVirtualScreens(getBetterDisplayCliPath());
     await showHUD("Mirroring fixed");
   } catch (error) {
     await reportError(error, "Could not fix mirroring");

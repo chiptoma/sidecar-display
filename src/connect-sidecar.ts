@@ -9,13 +9,12 @@ import { describeOutcome, reportError } from "./lib/feedback";
 import {
   getBackend,
   getBetterDisplayCliPath,
-  getMirrorFixMethod,
   loadConfig,
   shouldFixMirrorAfterConnect,
 } from "./lib/preferences";
 import { connectSidecar } from "./lib/sidecar";
 import { recordIntent } from "./lib/state";
-import { fixMirror } from "./lib/virtualscreens";
+import { reconnectVirtualScreens } from "./lib/virtualscreens";
 
 /**
  * Connects the iPad over Sidecar, then forces extend or mirror.
@@ -36,7 +35,7 @@ export default async function command(): Promise<void> {
     // Only fix mirroring on a genuine fresh connect — not when re-running the
     // command on an already-connected iPad — so it never reshuffles needlessly.
     if (shouldFixMirrorAfterConnect() && outcome.linkEstablished === true) {
-      await fixMirror(getBetterDisplayCliPath(), getMirrorFixMethod());
+      await reconnectVirtualScreens(getBetterDisplayCliPath());
     }
 
     await showHUD(describeOutcome(config, outcome));
