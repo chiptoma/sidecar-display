@@ -1,0 +1,30 @@
+---
+# =============================================================================
+# RELEASE
+# Cuts a GitHub Release with auto-generated notes when a v* tag is pushed.
+# -----------------------------------------------------------------------------
+# NOTE: This publishes a GitHub Release only. Submitting to the Raycast Store is
+#   a separate, human-reviewed pull request to raycast/extensions (run
+#   `npm run publish` locally); the public store has no headless publish path.
+# =============================================================================
+
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${GITHUB_REF_NAME}" --title "${GITHUB_REF_NAME}" --generate-notes
