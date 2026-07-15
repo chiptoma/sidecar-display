@@ -177,7 +177,8 @@
     "test:safety": "npm run test:unit && node test/safety.js",
     "test:hardware": "npm run test:safety && node test/display-mode.js && node test/lifecycle.js",
     "store:check": "npm run build && npm run test:unit",
-    "publish": "npm run store:check && npx @raycast/api@latest publish",
+    "preflight": "node scripts/preflight.js",
+    "publish": "npm run store:check && npm run preflight && npx @raycast/api@latest publish",
     "prepublishOnly": "echo \"\\n\\nERROR: This is a Raycast extension, not an npm package.\\nRun 'npm run publish' to submit it to the Raycast Store.\\n\\n\" && exit 1"
   }
 }

@@ -1,0 +1,30 @@
+---
+# =============================================================================
+# DEPENDABOT
+# Weekly update PRs for npm and GitHub Actions.
+# -----------------------------------------------------------------------------
+# NOTE: The Raycast Store requires a current `@raycast/api`, so keeping it fresh
+#   is a submission requirement, not just hygiene. Swift dependencies are not
+#   supported by Dependabot — bump `swift/Package.swift` by hand and commit the
+#   regenerated `swift/Package.resolved`.
+# =============================================================================
+
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore
+    groups:
+      dev-dependencies:
+        dependency-type: development
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: chore

@@ -102,6 +102,18 @@ Failures surface as `native <action> failed: <detail>`.
 
 ## 4. CI
 
+### Branching
+
+**Everything lives on `main`.** There is no develop branch: the Store PR is
+opened from your working tree, so `main` should always be submittable. Use a
+short-lived branch for anything risky (especially display-touching code) and
+open a PR — that is where the CI gate earns its keep.
+
+`main` is protected by a ruleset: **force-pushes and deletion are blocked**, and
+PRs need CI green. Direct pushes are allowed, so solo work stays frictionless.
+
+### The pipeline
+
 `.github/workflows/ci.yml` — runs on every push and PR to `main`, on
 `macos-latest` (macOS is required: it compiles the Swift package).
 
@@ -115,19 +127,44 @@ It also caches SwiftPM and cancels superseded runs per ref. Expect ~3 minutes
 (most of it Swift compilation).
 
 **CI does not run the safety or hardware suites** — they need BetterDisplay and
-an iPad, which hosted runners do not have. Run those locally before a release.
+an iPad, which hosted runners do not have. Run those locally before a release;
+`npm run preflight` asks you to confirm you did.
 
-## 5. Releasing to GitHub
+### Dependencies
 
-`.github/workflows/release.yml` cuts a GitHub Release from a `v*` tag with
-auto-generated notes.
+Dependabot opens weekly npm and GitHub Actions PRs (`.github/dependabot.yml`).
+Keeping `@raycast/api` current is a Store requirement, not just hygiene. **Swift
+dependencies are not covered** — bump `swift/Package.swift` by hand and commit
+the regenerated `swift/Package.resolved`.
+
+### Every gate, in one place
+
+| Gate | Where | Catches |
+| --- | --- | --- |
+| `lint` | local + CI | style, the size/typing limits |
+| `typecheck` | inside `build`, local + CI | type errors esbuild ignores |
+| `test:unit` | local + CI | safety invariants, keep-alive logic, the mirror fix |
+| `test:safety` / `test:hardware` | local only | real-hardware behaviour |
+| ruleset | GitHub | force-push, deletion, red CI on PRs |
+| `preflight` | inside `publish` | bad screenshots/icon, missing changelog entry, dirty tree, unrun hardware tests |
+| `prepublishOnly` | npm | a stray `npm publish` firing the Store script |
+
+## 5. Versioning and releasing
+
+**Raycast extensions have no version number.** There is deliberately no
+`version` in `package.json` — the Store versions the extension by what is
+merged, and your user-visible "version" is the **CHANGELOG entry title**.
+
+Git tags are therefore for *this repo only*: they mark what you submitted and
+give you a rollback point. `.github/workflows/release.yml` cuts a GitHub Release
+from a `v*` tag with auto-generated notes:
 
 ```sh
 git tag v1.0.0
 git push --tags
 ```
 
-This is independent of the Raycast Store.
+This is independent of the Raycast Store — a tag publishes nothing to Raycast.
 
 ## 6. Publishing to the Raycast Store
 
@@ -146,10 +183,15 @@ reviewed by a human. All store extensions are free, open-source, MIT.
 5. Run it:
 
 ```sh
-npm run publish   # = build + typecheck + test:unit, then opens the store PR
+npm run publish   # store:check + preflight, then opens the store PR
 ```
 
-It authenticates with GitHub and opens/updates the PR for you.
+`preflight` (`scripts/preflight.js`) hard-fails the publish unless the icon is
+512×512, the screenshots are 2000×1250 (3–6 of them), `CHANGELOG.md` has a
+`{PR_MERGE_DATE}` entry, and the tree is clean — then asks you to confirm the
+hardware suites passed, since CI cannot. Run it alone with `npm run preflight`.
+
+It then authenticates with GitHub and opens/updates the PR for you.
 
 **After submitting**
 

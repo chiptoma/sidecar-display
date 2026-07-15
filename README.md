@@ -220,13 +220,15 @@ sidecar-display/
 │   ├── safety.js                   # hardware: absent-device safety guard
 │   ├── display-mode.js             # hardware: mirror -> heal-to-extend
 │   └── lifecycle.js                # hardware: full connect/disconnect lifecycle
-├── .github/workflows/
-│   ├── ci.yml                      # lint + build + typecheck + unit tests
-│   └── release.yml                 # tag -> GitHub Release
+├── scripts/preflight.js            # store-readiness gate, runs inside `publish`
+├── .github/
+│   ├── workflows/ci.yml            # lint + build + typecheck + unit tests
+│   ├── workflows/release.yml       # tag -> GitHub Release
+│   └── dependabot.yml              # weekly npm + actions updates
 ├── docs/WORKFLOWS.md               # the runbook: clone -> dev -> test -> ship
 ├── assets/extension-icon.png       # the 512x512 store icon
 ├── metadata/                       # store screenshots (2000x1250)
-└── CHANGELOG.md · README.md · CONTRIBUTING.md · CLAUDE.md · LICENSE
+└── CHANGELOG.md · README.md · CONTRIBUTING.md · SECURITY.md · CLAUDE.md · LICENSE
 ```
 
 Each `src/*.ts(x)` is a thin command entry point with no logic; all logic lives in `src/lib/`.
