@@ -26,9 +26,9 @@ BetterDisplay (`betterdisplaycli`) and a native Swift helper (`swift/`).
   Swift functions in `swift/`, imported as `swift:../../swift`. No BetterDisplay.
 - `src/lib/sidecar.ts` — display/link orchestration (`connectSidecar`,
   `disconnectSidecar`, `ensureDisplayMode`). Takes a `SidecarBackend`. Pure Node,
-  no `@raycast/api` import, so `test/orchestration.js` drives it with a mock.
+  no `@raycast/api` import, so `test/orchestration.test.ts` drives it with a mock.
 - `src/lib/keepalive.ts` — pure decision state machine for background
-  auto-reconnect. No I/O, unit-tested headlessly (`test/keepalive.js`).
+  auto-reconnect. No I/O, unit-tested headlessly (`test/keepalive.test.ts`).
 - `src/lib/virtualscreens.ts` — `reconnectVirtualScreens(cliPath)`, the mechanism
   behind the Fix Mirroring command (feature name vs mechanism name is deliberate).
   Always via `betterdisplaycli` regardless of engine, since the mirror is a
@@ -50,7 +50,8 @@ also `@raycast/api`-free but imports `swift:`, so it is hardware-validated.)
 ## Invariants — never break these
 
 An earlier violation scrambled every window and caused a logout. These are
-enforced on every path and proven by `test/orchestration.js` + `test/safety.js`.
+enforced on every path and proven by `test/orchestration.test.ts` plus
+`test/safety.test.ts`.
 
 - **Never write the main display.** No `--main` write; mirroring always keeps the
   current main as master with the iPad as target (the reverse promotes the iPad

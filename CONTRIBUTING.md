@@ -61,8 +61,10 @@ If you touch `sidecar.ts` or `virtualscreens.ts`, run `test:unit` (and
   **kebab-case** (`connect-sidecar.ts`) — this is a Raycast requirement.
 - **Library modules** are **camelCase** (`betterdisplay.ts`, `virtualscreens.ts`).
 - **Swift** files are `PascalCase` (`SidecarBridge.swift`).
-- **Tests** are `{name}.js` under `test/` — named after the module they cover
-  (`keepalive.js`) or the scenario they exercise (`display-mode.js`).
+- **Tests** are `{name}.test.ts` under `test/` — named after the module they cover
+  (`keepalive.test.ts`) or the scenario they exercise (`display-mode.test.ts`).
+  They are TypeScript on Node's built-in runner (`node:test` + `node:assert`), so
+  a mock that drifts from `SidecarBackend` fails to compile.
 
 ### Vocabulary
 
@@ -123,7 +125,7 @@ stored. When adding a feature:
 - If it's pure logic, add a hardware-free test (mock backend or stub CLI) and
   wire it into `test:unit` so CI covers it.
 - If it touches hardware, add/extend a `test:hardware` case, but keep the safety
-  guarantee provable without hardware where possible (as `virtualscreens.js`
+  guarantee provable without hardware where possible (as `virtualscreens.test.ts`
   does with a stub `betterdisplaycli`).
 
 ## Pull requests

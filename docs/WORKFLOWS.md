@@ -78,7 +78,7 @@ Individually:
 ```sh
 npm run lint          # ESLint + Prettier, via `ray lint`
 npm run lint:fix      # ...and fix what it can
-npm run typecheck     # tsc --noEmit  (also runs inside `build`)
+npm run typecheck     # tsc --noEmit, src and tests  (also runs inside `build`)
 npm run build         # ray build (compiles Swift, generates types) + typecheck
 npm test              # alias for test:unit
 npm run test:unit     # hardware-free: keep-alive, orchestration, mirror fix
@@ -89,8 +89,9 @@ npm run clean         # delete every build artifact
 
 Naming: `<verb>` for the primary action, `<verb>:<qualifier>` for variants
 (`lint`/`lint:fix`, `build`/`build:test`, `test`/`test:unit`). `build:test`
-compiles the `@raycast/api`-free modules the unit tests import — it is a build
-step, not a test.
+compiles the tests and the `@raycast/api`-free modules they import, via
+`tsconfig.test.json`, into `.test-build/` — it is a build step, not a test. The
+`test:*` scripts run it first, so there is never a stale-build trap.
 
 | After changing… | Run at least |
 | --- | --- |
@@ -291,4 +292,4 @@ interface.
 **Change auto-reconnect behaviour**
 
 `src/lib/keepalive.ts` is pure. Change `decideKeepAlive`, add a case to
-`test/keepalive.js`, run `npm run test:unit`. No hardware needed.
+`test/keepalive.test.ts`, run `npm run test:unit`. No hardware needed.

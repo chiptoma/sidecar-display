@@ -214,12 +214,13 @@ sidecar-display/
 │       ├── Exports.swift           # the @raycast functions exported to TypeScript
 │       └── SidecarBridge.swift     # SidecarCore (dlopen) + CoreGraphics logic
 ├── test/
-│   ├── keepalive.js                # unit: keep-alive state machine (no hardware)
-│   ├── orchestration.js            # unit: orchestration vs a mock backend (no hardware)
-│   ├── virtualscreens.js           # unit: Fix Mirroring vs a stub CLI (no hardware)
-│   ├── safety.js                   # hardware: absent-device safety guard
-│   ├── display-mode.js             # hardware: mirror -> heal-to-extend
-│   └── lifecycle.js                # hardware: full connect/disconnect lifecycle
+│   ├── keepalive.test.ts           # unit: keep-alive state machine (no hardware)
+│   ├── orchestration.test.ts       # unit: orchestration vs a mock backend (no hardware)
+│   ├── virtualscreens.test.ts      # unit: Fix Mirroring vs a stub CLI (no hardware)
+│   ├── safety.test.ts              # hardware: absent-device safety guard
+│   ├── display-mode.test.ts        # hardware: mirror -> heal-to-extend
+│   └── lifecycle.test.ts           # hardware: full connect/disconnect lifecycle
+├── tsconfig.test.json              # test build: tests + the modules they import
 ├── scripts/preflight.js            # store-readiness gate, runs inside `publish`
 ├── .github/
 │   ├── workflows/ci.yml            # lint + build + typecheck + unit tests
