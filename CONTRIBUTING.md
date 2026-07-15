@@ -1,46 +1,19 @@
 # Contributing
 
-Notes for working on Sidecar Display — conventions, architecture, and the release
-process. The goal is that anyone (including a future you) can pick the project up
-cold and stay consistent with what's here.
+Conventions and standards for working on Sidecar Display.
 
-## Prerequisites
+- **Setting up, running, testing, CI, and releasing** live in
+  [docs/WORKFLOWS.md](./docs/WORKFLOWS.md) — start there if you are picking the
+  project up cold.
+- **What it does and how it works** is in the [README](./README.md).
+- This file is the *how we write it* half: conventions, invariants, commits.
 
-- **Node 22** (matches CI) and **npm** (commit `package-lock.json`).
-- **Raycast**.
-- **Full Xcode** — the native engine's Swift is compiled at build time via
-  [`extensions-swift-tools`](https://github.com/raycast/extensions-swift-tools).
-  The Command Line Tools alone are not enough.
-- **BetterDisplay** (optional, for the BetterDisplay engine and the hardware
-  tests) — `brew install --cask betterdisplay`.
-
-## Getting started
+## TL;DR
 
 ```sh
-npm install
-npm run dev      # imports into Raycast and hot-reloads
+npm install && npm run dev     # full Xcode required (compiles the Swift engine)
+npm run lint && npm run build && npm run test:unit   # before every commit
 ```
-
-`npm run dev` compiles the Swift package the first time (SPM fetches the
-dependency and builds the macro, so the first run is slower), generates the
-`swift:` TypeScript bridge, and reloads on save.
-
-## Scripts
-
-| Script | What it does |
-| --- | --- |
-| `npm run dev` | Import into Raycast + hot-reload. |
-| `npm run build` | `ray build` (compiles Swift, generates types) **+ `tsc --noEmit`**. |
-| `npm run typecheck` | `tsc --noEmit` only. |
-| `npm run lint` / `npm run fix-lint` | ESLint + Prettier (auto-fix with the latter). |
-| `npm run test:unit` | Hardware-free tests (CI runs this). |
-| `npm run test:safety` | Unit + absent-device safety (needs BetterDisplay, no iPad). |
-| `npm run test:hardware` | Full suite (needs an iPad + a virtual screen). |
-| `npm run publish` | Build + test, then open the Raycast Store PR. |
-
-Why a separate `typecheck`: `ray build` bundles with esbuild, which does **not**
-type-check. `tsc --noEmit` is wired into `build` and CI so a type error fails the
-build. Do not remove it.
 
 ## Architecture
 
@@ -68,8 +41,10 @@ scrambled every window and caused a logout.
    are refused when the iPad is itself main.
 2. **The connect/disconnect/mode path never disconnects or power-cycles a
    display.** The only sanctioned `--connected=` cycle is the isolated **Fix
-   Mirroring** feature (`virtualscreens.ts`), scoped to the main virtual screen
-   by UUID and guaranteed to reconnect it.
+   Mirroring** feature (`virtualscreens.ts`): it targets the main virtual screen
+   by UUID, falls back to all *virtual* screens when main is not itself one,
+   never touches a physical display, and always reconnects (a rejected
+   disconnect is tolerated, the reconnect still runs).
 3. **Never write for a display that isn't present.** Mode writes happen only when
    `readMirror` returns non-null; an absent display is never written.
 4. **Never trust a single read after a write.** Poll/converge until the state
@@ -86,7 +61,21 @@ If you touch `sidecar.ts` or `virtualscreens.ts`, run `test:unit` (and
   **kebab-case** (`connect-sidecar.ts`) — this is a Raycast requirement.
 - **Library modules** are **camelCase** (`betterdisplay.ts`, `virtualscreens.ts`).
 - **Swift** files are `PascalCase` (`SidecarBridge.swift`).
-- **Tests** are `{name}.js` under `test/`.
+- **Tests** are `{name}.js` under `test/` — named after the module they cover
+  (`keepalive.js`) or the scenario they exercise (`display-mode.js`).
+
+### Vocabulary
+
+Two deliberate splits. Both are intentional; keep them straight:
+
+| User-facing | In code | Why |
+| --- | --- | --- |
+| **Engine** (the preference) | `backend` / `SidecarBackend` | "Engine" reads better in a settings pane; `backend` is the code abstraction. The preference *key* stays `backend` — it is internal and renaming it would orphan stored values. |
+| **Fix Mirroring** (the command) | `virtualscreens.ts` / `reconnectVirtualScreens` | The command is named for the problem it solves; the module is named for the mechanism it uses. |
+
+A command's `name` and a preference's `name` are **stable identifiers** — users'
+hotkeys, aliases, and stored values bind to them. They are free to rename before
+the first Store release and breaking after it.
 
 ### File banners
 
@@ -137,20 +126,16 @@ stored. When adding a feature:
   guarantee provable without hardware where possible (as `virtualscreens.js`
   does with a stub `betterdisplaycli`).
 
-## Releasing
+## Pull requests
 
-1. Update `CHANGELOG.md` — add an `## [Title] - {PR_MERGE_DATE}` entry
-   (Raycast fills the date on merge).
-2. Ensure `metadata/` has screenshots: **2000×1250 PNG**, up to 6, captured via
-   Raycast's **Capture Window** action.
-3. `npm run publish` — runs build + typecheck + unit tests, then opens a PR to
-   [`raycast/extensions`](https://github.com/raycast/extensions). A human
-   reviews it; on merge it publishes to the Store.
-4. Tag the release (`git tag vX.Y.Z && git push --tags`) to cut a GitHub Release
-   via the release workflow.
+- One concern per PR; fill in the checklist in the PR template.
+- CI must be green: `lint`, `build` (compiles Swift + type-checks), `test:unit`.
+- If you touched safety-critical code, say which suites you ran locally — CI
+  cannot run the hardware ones.
 
-## CI
+## Where the rest lives
 
-`.github/workflows/ci.yml` runs on every push/PR to `main`: `lint`, `build`
-(which compiles the Swift and type-checks), and `test:unit`. The safety and
-hardware suites need BetterDisplay and an iPad, so they run locally, not in CI.
+- **Setup, dev loop, testing matrix, CI, releasing, publishing, troubleshooting**
+  → [docs/WORKFLOWS.md](./docs/WORKFLOWS.md)
+- **Adding a command / engine / preference** →
+  [docs/WORKFLOWS.md](./docs/WORKFLOWS.md#9-common-tasks)

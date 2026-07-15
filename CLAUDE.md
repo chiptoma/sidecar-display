@@ -1,16 +1,18 @@
 # Sidecar Display
 
-Raycast extension that connects an iPad over Sidecar and forces extend (or
-mirror) without touching the main display. Two engines: BetterDisplay
-(`betterdisplaycli`) and a native Swift helper (`swift/`).
+Raycast extension (macOS) that connects an iPad over Sidecar and forces extend
+(or mirror) without touching the main display. Two engines behind one interface:
+BetterDisplay (`betterdisplaycli`) and a native Swift helper (`swift/`).
 
-## Conventions
+## Language rules
 
-TypeScript is strict (no `any`, explicit return types, `interface` for object
-shapes, functions ≤ 50 lines, files ≤ 300). Every source file opens with an
-80-char banner and exports carry JSDoc. The full conventions, the safety
-invariants, and the release process live in
-[CONTRIBUTING.md](./CONTRIBUTING.md).
+@~/.claude/rules/lang/typescript.md
+
+## Human docs (do not duplicate here)
+
+- [README.md](./README.md) — what it does, how it works, the design decisions.
+- [CONTRIBUTING.md](./CONTRIBUTING.md) — conventions and code standards.
+- [docs/WORKFLOWS.md](./docs/WORKFLOWS.md) — clone/dev/test/CI/release runbook.
 
 ## Architecture
 
@@ -21,92 +23,75 @@ invariants, and the release process live in
   over `betterdisplaycli`. Reads tolerate rejection (`Failed.` on stderr, exit 1)
   and return `null`; writes throw.
 - `src/lib/native.ts` — `createNativeBackend()`, the engine over the `@raycast`
-  Swift functions in `swift/` (SidecarCore + CoreGraphics). No BetterDisplay.
-- `src/lib/virtualscreens.ts` — `reconnectVirtualScreens(cliPath)`: clears macOS
-  Sidecar's own mirror mode (invisible to CoreGraphics/`--mirror`) by cycling the
-  main virtual screen by UUID, which forces a display re-arrangement. Tolerates a
-  rejected disconnect and ALWAYS reconnects, so the screen is never left down.
-  Engine-independent and always via `betterdisplaycli`, since the mirror is a
-  BetterDisplay virtual-screen artifact. Only run on explicit request or the
-  opt-in `fixMirrorAfterConnect`. (`perform --reconfigure` was tried as a lighter
-  alternative and does not clear this mirror.)
-- `swift/` — the native helper as a Swift Package compiled by `ray build` via
-  `extensions-swift-tools` (needs full Xcode; no binary is committed, `.build/`
-  is gitignored). Its `@raycast` functions (`Sources/Sidecar/Exports.swift`) are
-  imported from TypeScript as `swift:../../swift`; the SidecarCore/CoreGraphics
-  logic lives in `Sources/Sidecar/SidecarBridge.swift`. Identifies the Sidecar
-  display by the AirPlay vendor signature or a "Sidecar"/"AirPlay"
-  `NSScreen.localizedName`; connect/disconnect via runtime-dispatched SidecarCore
-  selectors; extend/mirror via `CGConfigureDisplayMirrorOfDisplay` keeping the
-  current main as master.
-- `src/lib/sidecar.ts` — display/link orchestration. Takes a `SidecarBackend`.
-  Pure Node, no `@raycast/api` import, so tests exercise it with a mock backend
-  (`test/orchestration.js`) or a real engine.
+  Swift functions in `swift/`, imported as `swift:../../swift`. No BetterDisplay.
+- `src/lib/sidecar.ts` — display/link orchestration (`connectSidecar`,
+  `disconnectSidecar`, `ensureDisplayMode`). Takes a `SidecarBackend`. Pure Node,
+  no `@raycast/api` import, so `test/orchestration.js` drives it with a mock.
 - `src/lib/keepalive.ts` — pure decision state machine for background
-  auto-reconnect. No I/O, so it is unit-tested headlessly (`test/keepalive.js`).
-- `src/lib/state.ts` — the only module that touches Raycast `LocalStorage`
-  (keep-alive intent + the menu-bar device selection).
+  auto-reconnect. No I/O, unit-tested headlessly (`test/keepalive.js`).
+- `src/lib/virtualscreens.ts` — `reconnectVirtualScreens(cliPath)`, the mechanism
+  behind the Fix Mirroring command (feature name vs mechanism name is deliberate).
+  Always via `betterdisplaycli` regardless of engine, since the mirror is a
+  BetterDisplay virtual-screen artifact.
+- `src/lib/state.ts` — the only module that touches `LocalStorage`.
 - `src/lib/preferences.ts` — maps Raycast's generated `Preferences` type into a
-  `SidecarConfig` (`readTuning`/`buildConfig`/`loadConfig`). Never hand-declare
-  the preference shape; it is generated from `package.json` by `ray build`.
+  `SidecarConfig`. Never hand-declare the preference shape; `ray build` generates
+  it from `package.json`.
 - `src/lib/feedback.ts` — HUD/toast text from a `ModeOutcome`.
-- `src/*.ts(x)` — one thin command entry point each, no logic: connect /
-  disconnect (no-view), `auto-reconnect` (no-view, `interval`),
-  `reconnect-virtual-screens` ("Fix Mirroring", no-view), and `sidecar-status`
-  (menu-bar). Purity split: the lib modules WITHOUT an `@raycast/api` import
-  (`backend`, `betterdisplay`, `sidecar`, `keepalive`, `virtualscreens`) are the
-  ones compiled by `test:build` and unit-tested headlessly (the last via a stub
-  `betterdisplaycli`); keep testable logic there. `native` is also
-  `@raycast/api`-free but is validated on hardware.
+- `src/*.ts(x)` — one thin command entry point each, no logic.
+- `swift/Sources/Sidecar/` — `Exports.swift` (the `@raycast` functions) over
+  `SidecarBridge.swift` (SidecarCore via `dlopen` + CoreGraphics). Compiled by
+  `ray build`; no binary is committed.
 
-## Invariants
+Purity split: modules WITHOUT an `@raycast/api` import are the ones `test:build`
+compiles and the unit tests drive. Keep testable logic there. (`native.ts` is
+also `@raycast/api`-free but imports `swift:`, so it is hardware-validated.)
 
-- **Never write `--main`.** Changing the main display relocates the user's
-  windows. Mirroring must always use the existing main display as the master
-  and the iPad as the target; the reverse direction promotes the iPad to master.
-- **The mode path never disconnects or power-cycles a display.** The
-  connect/disconnect/mode orchestration in `sidecar.ts` issues no `--connected=`
-  writes on any display; an earlier mitigation that cycled displays *inside* the
-  mode path scrambled every window and was removed. The one sanctioned
-  `--connected=off`/`on` cycle is the explicit **Fix Mirroring** feature
-  (`virtualscreens.ts`): scoped to the main virtual screen by UUID, guaranteed to
-  reconnect (a rejected disconnect is tolerated, the reconnect always runs), and
-  triggered only on the `fixMirrorAfterConnect` opt-in or the manual command —
-  never from inside converge. The mode path's entire mutation surface is: the
-  Sidecar link, `--mirror=off` on the iPad, and `--mirror=on` with the current
-  main as master.
-- **Never write for an absent display; converge and hold; never trust one read.**
-  `ensureDisplayMode` writes only when the iPad's display reads *present*
-  (`readMirror` non-null) and disagrees with the target; an absent or phantom
-  display (null) is never written, and the call throws at the deadline having
-  changed nothing. Once present, the mode is re-asserted on every disagreeing
-  read and reported `settled` only after it reads correct `REQUIRED_STABLE_READS`
-  (3) times running — outlasting the ~1s macOS spends rearranging a freshly
-  connected display (it often comes up mirrored, then flips). `get --sidecarList`
-  lists paired-but-maybe-absent devices, so a resolved name is not proof of
-  reachability — the present-read requirement is what makes the absent case safe.
-- **If the iPad is the main display, do nothing to its mode and report it.**
-- **Never trust a single read after a write.** Poll until the state settles or
-  the timeout expires.
+## Invariants — never break these
+
+An earlier violation scrambled every window and caused a logout. These are
+enforced on every path and proven by `test/orchestration.js` + `test/safety.js`.
+
+- **Never write the main display.** No `--main` write; mirroring always keeps the
+  current main as master with the iPad as target (the reverse promotes the iPad
+  and macOS moves every window onto it). Both mode writes are refused when the
+  iPad is itself main.
+- **The mode path never disconnects or power-cycles a display.** The only
+  sanctioned `--connected=off`/`on` cycle is `virtualscreens.ts`: it targets the
+  main virtual screen by UUID, falls back to `--type=VirtualScreen` (all virtual
+  screens) when main is not itself one, NEVER touches a physical display, and is
+  guaranteed to reconnect (a rejected disconnect is tolerated; the reconnect
+  always runs). Reached only from the Fix Mirroring command or the
+  `fixMirrorAfterConnect` opt-in — never from inside converge.
+- **Never write for an absent display.** Mode writes happen only when `readMirror`
+  is non-null. `get --sidecarList` lists paired-but-maybe-absent devices, so a
+  resolved name is not proof of reachability.
+- **If the iPad is the main display, leave its mode alone and report it.**
+- **Never trust a single read after a write.** `ensureDisplayMode` re-asserts on
+  every disagreeing read and only reports settled after `REQUIRED_STABLE_READS`
+  (3) consecutive correct reads — macOS spends ~1s rearranging a fresh Sidecar
+  display and often reports mirrored before flipping.
 - **`set --sidecarConnected` is not idempotent.** It fails when the link is
-  already in the requested state. Read the state before writing.
+  already in the requested state; read before writing.
 - **Auto-reconnect only chases a link that dropped on its own.** Every manual
-  connect/disconnect/toggle records intent via `recordIntent`; keep-alive must
-  respect a deliberate disconnect. It never abandons a wanted link permanently:
-  a fast backoff burst, then a slow heartbeat. There is no on-wake or
-  display-change event, so a long gap between ticks is treated as a wake and
-  re-arms an immediate attempt — that is the only "wake" signal available.
+  connect/disconnect records intent via `recordIntent`; a deliberate disconnect
+  is never fought. It never abandons a wanted link: fast burst, then a slow
+  heartbeat. A long gap between ticks is the only available "wake" signal.
+
+## Domain facts (established by testing, not documented upstream)
+
+- **macOS Sidecar's own mirror mode is invisible to every display API** —
+  CoreGraphics, `NSScreen`, and BetterDisplay all report the iPad as extended
+  while it mirrors. It therefore CANNOT be detected; Fix Mirroring fires on a
+  fresh connect as a proxy, never on a detected condition. Do not add
+  "detect if mirrored" logic — it is not possible.
+- `perform --reconfigure` exits 0 but does not clear this mirror (tried, removed).
+- `NSScreen` omits mirrored displays; the native engine finds the Sidecar display
+  by the AirPlay vendor signature (`0x6161706C`) so it works while mirrored.
 
 ## Verification
 
-`npm run lint` and `npm run build` must both be clean.
-
-`npm run test:safety` needs no iPad and makes no display changes: it is the
-regression guard proving an absent/unreachable device produces zero topology
-writes and never touches the main display. Run it after any change to the
-orchestration.
-
-`npm run test:hardware` additionally reproduces the mirroring case, asserts the
-extension heals it without moving the main display, and exercises the full
-connect/disconnect lifecycle. It requires BetterDisplay running, an iPad paired
-for Sidecar, and at least one virtual screen.
+`npm run lint` and `npm run build` (which type-checks) must both be clean, and
+`npm run test:unit` must pass — no hardware needed. Run `npm run test:safety`
+after any orchestration change if BetterDisplay is available. Full commands and
+the hardware suites: [docs/WORKFLOWS.md](./docs/WORKFLOWS.md).
