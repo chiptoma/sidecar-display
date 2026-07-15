@@ -65,8 +65,7 @@ async function mainVirtualScreenUuid(cliPath: string): Promise<string | null> {
   if (raw === null || !raw.includes(`"${VIRTUAL_TYPE}"`)) {
     return null;
   }
-  const match = raw.match(/"UUID"\s*:\s*"([^"]+)"/);
-  return match ? match[1] : null;
+  return raw.match(/"UUID"\s*:\s*"([^"]+)"/)?.[1] ?? null;
 }
 
 /**

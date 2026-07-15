@@ -42,7 +42,7 @@ builds its macros. Later runs are fast.
 
 1. `npm run dev` — leave it running; it hot-reloads on save.
 2. Edit. Command entry points are thin; logic lives in `src/lib/`.
-3. `npm run lint` / `npm run fix-lint` as you go.
+3. `npm run lint` / `npm run lint:fix` as you go.
 4. `npm run test:unit` before you commit — it is fast and needs no hardware.
 5. Commit (Conventional Commits — see [CONTRIBUTING](../CONTRIBUTING.md#commits)).
 
@@ -70,13 +70,27 @@ hand-declare the preference shape.
 ## 3. Verification: what to run, when
 
 ```sh
-npm run lint         # ESLint + Prettier
-npm run typecheck    # tsc --noEmit  (also runs inside `build`)
-npm run build        # ray build (compiles Swift, generates types) + typecheck
-npm run test:unit    # hardware-free: keep-alive, orchestration, mirror fix
-npm run test:safety  # + absent-device guard   (needs BetterDisplay, no iPad)
-npm run test:hardware# + full lifecycle        (needs BetterDisplay AND an iPad)
+npm run verify        # lint + build + test:unit — the one to run before committing
 ```
+
+Individually:
+
+```sh
+npm run lint          # ESLint + Prettier, via `ray lint`
+npm run lint:fix      # ...and fix what it can
+npm run typecheck     # tsc --noEmit  (also runs inside `build`)
+npm run build         # ray build (compiles Swift, generates types) + typecheck
+npm test              # alias for test:unit
+npm run test:unit     # hardware-free: keep-alive, orchestration, mirror fix
+npm run test:safety   # + absent-device guard   (needs BetterDisplay, no iPad)
+npm run test:hardware # + full lifecycle        (needs BetterDisplay AND an iPad)
+npm run clean         # delete every build artifact
+```
+
+Naming: `<verb>` for the primary action, `<verb>:<qualifier>` for variants
+(`lint`/`lint:fix`, `build`/`build:test`, `test`/`test:unit`). `build:test`
+compiles the `@raycast/api`-free modules the unit tests import — it is a build
+step, not a test.
 
 | After changing… | Run at least |
 | --- | --- |

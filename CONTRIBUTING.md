@@ -24,7 +24,7 @@ See the [README](./README.md#how-it-works) for the deep version. In short:
 - **The orchestration** (`src/lib/sidecar.ts`) and the **keep-alive state
   machine** (`src/lib/keepalive.ts`) are pure — no `@raycast/api` import — so
   they're unit-tested headlessly against mocks. Keep testable logic in modules
-  without a `@raycast/api` import; those are the ones `test:build` compiles.
+  without a `@raycast/api` import; those are the ones `build:test` compiles.
 - **Engines** implement the `SidecarBackend` interface (`src/lib/backend.ts`).
   The orchestration depends only on that interface, never on a concrete engine.
 - **`src/lib/state.ts`** is the only module that touches `LocalStorage`.

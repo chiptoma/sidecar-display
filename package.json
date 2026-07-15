@@ -167,17 +167,20 @@
     "typescript": "^5.8.2"
   },
   "scripts": {
-    "build": "ray build && npm run typecheck",
     "dev": "ray develop",
+    "build": "ray build && npm run typecheck",
+    "build:test": "tsc src/lib/backend.ts src/lib/betterdisplay.ts src/lib/sidecar.ts src/lib/keepalive.ts src/lib/virtualscreens.ts --outDir .test-build --module commonjs --target ES2022 --strict --skipLibCheck",
     "typecheck": "tsc --noEmit",
     "lint": "ray lint",
-    "fix-lint": "ray lint --fix",
-    "test:build": "tsc src/lib/backend.ts src/lib/betterdisplay.ts src/lib/sidecar.ts src/lib/keepalive.ts src/lib/virtualscreens.ts --outDir .test-build --module commonjs --target ES2022 --strict --skipLibCheck",
-    "test:unit": "npm run test:build && node test/keepalive.js && node test/orchestration.js && node test/virtualscreens.js",
+    "lint:fix": "ray lint --fix",
+    "test": "npm run test:unit",
+    "test:unit": "npm run build:test && node test/keepalive.js && node test/orchestration.js && node test/virtualscreens.js",
     "test:safety": "npm run test:unit && node test/safety.js",
     "test:hardware": "npm run test:safety && node test/display-mode.js && node test/lifecycle.js",
-    "store:check": "npm run build && npm run test:unit",
+    "verify": "npm run lint && npm run build && npm run test:unit",
+    "clean": "rm -rf .test-build dist compiled_raycast_swift raycast-env.d.ts swift/.build swift/.swiftpm swift/.raycast-swift-build",
     "preflight": "node scripts/preflight.js",
+    "store:check": "npm run build && npm run test:unit",
     "publish": "npm run store:check && npm run preflight && npx @raycast/api@latest publish",
     "prepublishOnly": "echo \"\\n\\nERROR: This is a Raycast extension, not an npm package.\\nRun 'npm run publish' to submit it to the Raycast Store.\\n\\n\" && exit 1"
   }

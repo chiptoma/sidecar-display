@@ -81,14 +81,15 @@ export async function resolveIpadName(backend: SidecarBackend, override: string)
   }
 
   const devices = await backend.listDevices();
-  if (devices.length === 0) {
+  const only = devices[0];
+  if (only === undefined) {
     throw new SidecarError("No Sidecar devices found. Is your iPad signed in to the same Apple ID?");
   }
   if (devices.length > 1) {
     const names = devices.map((device) => device.name).join(", ");
     throw new SidecarError(`Multiple Sidecar devices found (${names}). Set “iPad Name” in preferences.`);
   }
-  return devices[0].name;
+  return only.name;
 }
 
 // -----------------------------------------------------------

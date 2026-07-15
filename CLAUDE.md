@@ -43,7 +43,7 @@ BetterDisplay (`betterdisplaycli`) and a native Swift helper (`swift/`).
   `SidecarBridge.swift` (SidecarCore via `dlopen` + CoreGraphics). Compiled by
   `ray build`; no binary is committed.
 
-Purity split: modules WITHOUT an `@raycast/api` import are the ones `test:build`
+Purity split: modules WITHOUT an `@raycast/api` import are the ones `build:test`
 compiles and the unit tests drive. Keep testable logic there. (`native.ts` is
 also `@raycast/api`-free but imports `swift:`, so it is hardware-validated.)
 
