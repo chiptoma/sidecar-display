@@ -18,6 +18,18 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: chore
+    ignore:
+      # The Raycast toolchain pins this: @raycast/eslint-config peer-requires
+      # `typescript@>=4.8.4 <6.1.0`, so a major bump cannot install (ERESOLVE).
+      # Revisit only when Raycast widens that peer range.
+      - dependency-name: typescript
+        update-types:
+          - version-update:semver-major
+      # The type definitions must match the runtime, which .nvmrc and CI pin to
+      # Node 22 — newer types would describe APIs that are not actually there.
+      - dependency-name: "@types/node"
+        update-types:
+          - version-update:semver-major
     groups:
       dev-dependencies:
         dependency-type: development
