@@ -109,8 +109,14 @@ opened from your working tree, so `main` should always be submittable. Use a
 short-lived branch for anything risky (especially display-touching code) and
 open a PR — that is where the CI gate earns its keep.
 
-`main` is protected by a ruleset: **force-pushes and deletion are blocked**, and
-PRs need CI green. Direct pushes are allowed, so solo work stays frictionless.
+`main` is protected by a ruleset: **force-pushes (`non_fast_forward`) and
+deletion are blocked**. Ordinary pushes are unaffected, so solo work stays
+frictionless.
+
+> CI is deliberately **not** a required status check on `main`. A required check
+> on the branch itself blocks *every* direct push — the check cannot run until
+> the commit is on the remote, and the commit cannot land until the check passes.
+> CI still runs on every push and PR; treat a red run as a stop sign, not a lock.
 
 ### The pipeline
 
@@ -145,7 +151,7 @@ the regenerated `swift/Package.resolved`.
 | `typecheck` | inside `build`, local + CI | type errors esbuild ignores |
 | `test:unit` | local + CI | safety invariants, keep-alive logic, the mirror fix |
 | `test:safety` / `test:hardware` | local only | real-hardware behaviour |
-| ruleset | GitHub | force-push, deletion, red CI on PRs |
+| ruleset | GitHub | force-push, branch deletion |
 | `preflight` | inside `publish` | bad screenshots/icon, missing changelog entry, dirty tree, unrun hardware tests |
 | `prepublishOnly` | npm | a stray `npm publish` firing the Store script |
 
