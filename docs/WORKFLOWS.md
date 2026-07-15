@@ -158,6 +158,19 @@ Keeping `@raycast/api` current is a Store requirement, not just hygiene. **Swift
 dependencies are not covered** — bump `swift/Package.swift` by hand and commit
 the regenerated `swift/Package.resolved`.
 
+Two dependencies are deliberately held below their latest release. Both are
+ignored in `dependabot.yml` at exactly the bound below — nothing usable is
+hidden, so a version that *can* move still shows up as a PR.
+
+| Dependency | Held at | Why |
+| --- | --- | --- |
+| `typescript` | `~6.0.3` | `@raycast/eslint-config` peer-requires `>=4.8.4 <6.1.0`. 6.1+ and all of 7.x fail to install (`ERESOLVE`). The tilde matters: `^6.0.3` would allow 6.1.0 and break the day it ships. Drop the pin when Raycast widens that peer. |
+| `@types/node` | `22.x` | `@raycast/api` declares `engines: node >=22.22.2`. Types must match the runtime — newer ones describe APIs that are not there, so `tsc` would accept code that crashes inside Raycast. Bump this only alongside `.nvmrc` and the CI `node-version`. |
+
+TypeScript 6 needs `"types": ["node"]` in `tsconfig.json`: it no longer
+auto-includes every `@types` package, so without that line `@types/node`
+silently vanishes and every `node:` import fails to resolve.
+
 ### Every gate, in one place
 
 | Gate | Where | Catches |

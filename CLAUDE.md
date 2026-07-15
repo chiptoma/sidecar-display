@@ -90,6 +90,18 @@ enforced on every path and proven by `test/orchestration.test.ts` plus
 - `NSScreen` omits mirrored displays; the native engine finds the Sidecar display
   by the AirPlay vendor signature (`0x6161706C`) so it works while mirrored.
 
+## Toolchain pins — do not "helpfully" widen these
+
+- `typescript` is `~6.0.3`, NOT `^6.0.3`. `@raycast/eslint-config` peer-requires
+  `<6.1.0`, so a caret would break the install the day 6.1 ships. TypeScript 7 is
+  impossible until Raycast widens that peer.
+- `@types/node` stays on `22.x` to match `engines: node >=22.22.2`. Types ahead of
+  the runtime make `tsc` accept calls that crash inside Raycast.
+- `tsconfig.json` MUST keep `"types": ["node"]` — TypeScript 6 stopped
+  auto-including `@types`, and without it every `node:` import fails to resolve.
+
+Rationale and the matching `dependabot.yml` bounds: [docs/WORKFLOWS.md](./docs/WORKFLOWS.md).
+
 ## Verification
 
 `npm run lint` and `npm run build` (which type-checks) must both be clean, and

@@ -19,12 +19,14 @@ updates:
     commit-message:
       prefix: chore
     ignore:
-      # The Raycast toolchain pins this: @raycast/eslint-config peer-requires
-      # `typescript@>=4.8.4 <6.1.0`, so a major bump cannot install (ERESOLVE).
-      # Revisit only when Raycast widens that peer range.
+      # The Raycast toolchain caps this: @raycast/eslint-config peer-requires
+      # `typescript@>=4.8.4 <6.1.0`, so 6.1+ and every 7.x cannot install
+      # (ERESOLVE). 6.0.x is fine and must keep flowing through — hence a
+      # version bound rather than a blanket major-version ignore. Drop this
+      # entirely once Raycast widens that peer range.
       - dependency-name: typescript
-        update-types:
-          - version-update:semver-major
+        versions:
+          - ">=6.1.0"
       # The type definitions must match the runtime, which .nvmrc and CI pin to
       # Node 22 — newer types would describe APIs that are not actually there.
       - dependency-name: "@types/node"
