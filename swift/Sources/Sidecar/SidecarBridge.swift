@@ -30,6 +30,7 @@ struct HelperError: LocalizedError, CustomStringConvertible {
 // SIDECARCORE (private, runtime-dispatched)
 // -----------------------------------------------------------
 
+/// The shared SidecarDisplayManager, loading the private framework on demand.
 func sidecarManager() throws -> NSObject {
   guard dlopen("/System/Library/PrivateFrameworks/SidecarCore.framework/SidecarCore", RTLD_LAZY) != nil else {
     throw HelperError("Could not load SidecarCore.framework")
@@ -42,14 +43,17 @@ func sidecarManager() throws -> NSObject {
   return manager
 }
 
+/// Every paired Sidecar device the manager knows about, present or not.
 func sidecarDevices(_ manager: NSObject) -> [NSObject] {
   (manager.perform(NSSelectorFromString("devices"))?.takeUnretainedValue() as? [NSObject]) ?? []
 }
 
+/// A device's display name, or an empty string when the selector is unavailable.
 func deviceName(_ device: NSObject) -> String {
   (device.perform(NSSelectorFromString("name"))?.takeUnretainedValue() as? String) ?? ""
 }
 
+/// Locates a paired device by name, returning it with its manager.
 func findDevice(named target: String) throws -> (NSObject, NSObject) {
   let manager = try sidecarManager()
   for device in sidecarDevices(manager) where deviceName(device) == target {
@@ -84,7 +88,7 @@ func runWithCompletion(_ selector: String, _ manager: NSObject, _ device: NSObje
 // -----------------------------------------------------------
 
 // Apple's AirPlay/Sidecar display vendor number: the ASCII bytes "aapl".
-let AIRPLAY_VENDOR: UInt32 = 0x6161_706C
+let airplayVendor: UInt32 = 0x6161_706C
 
 /// CGDirectDisplayIDs whose NSScreen name marks them as Sidecar/AirPlay.
 ///
@@ -116,13 +120,17 @@ func sidecarDisplayID() -> CGDirectDisplayID? {
   var count: UInt32 = 0
   guard CGGetOnlineDisplayList(16, &ids, &count) == .success else { return nil }
   for id in ids.prefix(Int(count)) where CGDisplayIsBuiltin(id) == 0 {
-    if CGDisplayVendorNumber(id) == AIRPLAY_VENDOR || named.contains(id) {
+    if CGDisplayVendorNumber(id) == airplayVendor || named.contains(id) {
       return id
     }
   }
   return nil
 }
 
+/// Points `display` at `master`'s mirror set, or detaches it with a null master.
+///
+/// WARN: Only ever called with the Sidecar display as `display`. Passing the
+///   main display here would relocate the user's windows.
 func setMirror(of display: CGDirectDisplayID, master: CGDirectDisplayID) throws {
   var config: CGDisplayConfigRef?
   guard CGBeginDisplayConfiguration(&config) == .success, let config else {

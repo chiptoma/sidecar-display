@@ -1,5 +1,6 @@
 // =============================================================================
 // UNIT TEST - VIRTUAL SCREENS (fake CLI, no hardware)
+// Proves the mirror fix never leaves a virtual screen disconnected.
 // -----------------------------------------------------------------------------
 // Context: Drives reconnectVirtualScreens against a stub betterdisplaycli script
 //   so the real execFile path, argument construction, and error handling run

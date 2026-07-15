@@ -3,8 +3,8 @@
 // The @raycast global functions the TypeScript Native engine calls.
 // -----------------------------------------------------------------------------
 // Context: Each function is invoked as a fresh short-lived process by the
-//   Raycast Swift bridge, so it is stateless — exactly like the old CLI. Errors
-//   thrown here surface to TypeScript as a rejected promise carrying the message.
+//   Raycast Swift bridge, so nothing persists between calls. Errors thrown here
+//   surface to TypeScript as a rejected promise carrying the message.
 // WARN: `extend`/`mirror` only reconfigure the Sidecar display; the main display
 //   is never reassigned and no display is disconnected.
 // =============================================================================

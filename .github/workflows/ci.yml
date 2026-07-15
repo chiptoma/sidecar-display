@@ -18,6 +18,9 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 # Only keep the latest run per ref; cancel superseded ones.
 concurrency:
   group: ci-${{ github.ref }}
@@ -40,7 +43,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/Library/Caches/org.swift.swiftpm
-          key: swiftpm-${{ runner.os }}-${{ hashFiles('swift/Package.swift') }}
+          key: swiftpm-${{ runner.os }}-${{ hashFiles('swift/Package.resolved') }}
           restore-keys: swiftpm-${{ runner.os }}-
 
       - name: Install dependencies

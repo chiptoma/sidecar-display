@@ -1,6 +1,6 @@
 // =============================================================================
-// RECONNECT VIRTUAL SCREENS
-// Cycles BetterDisplay virtual screens to fix Sidecar-layer mirroring.
+// FIX MIRRORING
+// Clears macOS Sidecar's own mirror mode by reconnecting the main virtual screen.
 // =============================================================================
 
 import { showHUD, showToast, Toast } from "@raycast/api";
@@ -10,11 +10,12 @@ import { betterDisplayAvailable, getBetterDisplayCliPath } from "./lib/preferenc
 import { reconnectVirtualScreens } from "./lib/virtualscreens";
 
 /**
- * Clears Sidecar's mirror mode using the chosen method.
+ * Clears macOS Sidecar's own mirror mode.
  *
  * NOTE: Use this when the iPad connects showing a copy of the main screen —
- *   macOS Sidecar's own mirror mode, which the display APIs cannot toggle.
- *   Re-triggers the arrangement so the iPad extends. Requires BetterDisplay.
+ *   Sidecar's own mirror mode, which the display APIs cannot see or toggle.
+ *   Reconnecting the main virtual screen re-triggers the arrangement so the
+ *   iPad lands extended. Requires BetterDisplay.
  */
 export default async function command(): Promise<void> {
   if (!betterDisplayAvailable()) {

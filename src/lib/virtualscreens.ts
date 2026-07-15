@@ -1,6 +1,7 @@
 // =============================================================================
-// MIRROR FIX
-// Reconnects the main virtual screen to clear Sidecar's own mirror mode.
+// VIRTUAL SCREEN RECONNECT
+// The mechanism behind the "Fix Mirroring" command: reconnects the main
+// BetterDisplay virtual screen to clear Sidecar's own mirror mode.
 // -----------------------------------------------------------------------------
 // Context: When the iPad connects, macOS Sidecar can bring it up mirroring at
 //   the Sidecar layer — invisible to CoreGraphics and to `--mirror`. The only

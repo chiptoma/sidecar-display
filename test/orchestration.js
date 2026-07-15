@@ -1,5 +1,6 @@
 // =============================================================================
 // UNIT TEST - ORCHESTRATION (mock backend, no hardware)
+// Proves the safety invariants of connect and ensureDisplayMode.
 // -----------------------------------------------------------------------------
 // Context: Drives the engine-agnostic orchestration against a scripted mock
 //   backend, proving the safety invariants with zero hardware: it never writes

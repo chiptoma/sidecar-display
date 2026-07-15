@@ -25,7 +25,7 @@ import { connectSidecar, disconnectSidecar, ensureDisplayMode, isConnected } fro
 import { loadSelectedDevice, recordIntent, saveSelectedDevice } from "./lib/state";
 import { reconnectVirtualScreens } from "./lib/virtualscreens";
 
-import type { SidecarDevice } from "./lib/backend";
+import type { DisplayMode, SidecarDevice } from "./lib/backend";
 
 /** Everything the menu needs to render one refresh. */
 interface StatusModel {
@@ -80,7 +80,7 @@ async function disconnectDevice(name: string): Promise<void> {
  * @param name - Device to reconfigure.
  * @param mode - Desired display mode.
  */
-async function setMode(name: string, mode: "extend" | "mirror"): Promise<void> {
+async function setMode(name: string, mode: DisplayMode): Promise<void> {
   await ensureDisplayMode(getBackend(), buildConfig(name, { mode }));
 }
 
@@ -102,6 +102,115 @@ async function runAction(action: () => Promise<void>, successHUD: string, errorT
   } catch (error) {
     await reportError(error, errorTitle);
   }
+}
+
+// -----------------------------------------------------------
+// SECTIONS
+// -----------------------------------------------------------
+
+/**
+ * The actions for the selected device: extend/mirror/disconnect, or connect.
+ *
+ * @param props.selected  - The device the actions act on.
+ * @param props.connected - Whether that device is currently attached.
+ * @returns The device section.
+ */
+function DeviceSection({ selected, connected }: { selected: string; connected: boolean }): React.JSX.Element {
+  return (
+    <MenuBarExtra.Section title={selected}>
+      {connected ? (
+        <>
+          <MenuBarExtra.Item
+            title="Extend"
+            icon={Icon.AppWindowGrid2x2}
+            onAction={() =>
+              runAction(() => setMode(selected, "extend"), "Sidecar extended", "Could not extend")
+            }
+          />
+          <MenuBarExtra.Item
+            title="Mirror"
+            icon={Icon.Duplicate}
+            onAction={() =>
+              runAction(() => setMode(selected, "mirror"), "Sidecar mirrored", "Could not mirror")
+            }
+          />
+          <MenuBarExtra.Item
+            title="Disconnect"
+            icon={Icon.MinusCircle}
+            onAction={() =>
+              runAction(
+                () => disconnectDevice(selected),
+                "Sidecar disconnected",
+                "Could not disconnect Sidecar",
+              )
+            }
+          />
+        </>
+      ) : (
+        <MenuBarExtra.Item
+          title="Connect"
+          icon={Icon.Monitor}
+          onAction={() =>
+            runAction(() => connectDevice(selected), "Sidecar connected", "Could not connect Sidecar")
+          }
+        />
+      )}
+    </MenuBarExtra.Section>
+  );
+}
+
+/**
+ * The device picker, shown only when more than one device is paired.
+ *
+ * @param props.devices  - Every paired Sidecar device.
+ * @param props.selected - The currently pinned device.
+ * @returns The devices section.
+ */
+function DevicesSection({
+  devices,
+  selected,
+}: {
+  devices: readonly SidecarDevice[];
+  selected: string;
+}): React.JSX.Element {
+  return (
+    <MenuBarExtra.Section title="Devices">
+      {devices.map((device) => (
+        <MenuBarExtra.Item
+          key={device.uuid}
+          title={device.name}
+          icon={device.name === selected ? Icon.Checkmark : Icon.Circle}
+          onAction={() =>
+            runAction(() => connectDevice(device.name), "Sidecar connected", "Could not connect Sidecar")
+          }
+        />
+      ))}
+    </MenuBarExtra.Section>
+  );
+}
+
+/**
+ * The Fix Mirroring action, shown only when BetterDisplay can perform it.
+ *
+ * @returns The mirror-fix section.
+ */
+function FixMirroringSection(): React.JSX.Element {
+  return (
+    <MenuBarExtra.Section>
+      <MenuBarExtra.Item
+        title="Fix Mirroring"
+        icon={Icon.ArrowClockwise}
+        tooltip="Fix an iPad that is mirroring your main screen (Sidecar's own mirror mode)"
+        onAction={() =>
+          runAction(
+            () => reconnectVirtualScreens(getBetterDisplayCliPath()),
+            "Mirroring fixed",
+            "Could not fix mirroring",
+          )
+        }
+      />
+    </MenuBarExtra.Section>
+  );
 }
 
 /**
@@ -132,82 +241,14 @@ export default function Command(): React.JSX.Element {
       {model !== null && model.devices.length === 0 && <MenuBarExtra.Item title="No Sidecar devices found" />}
 
       {model !== null && model.selected !== "" && (
-        <MenuBarExtra.Section title={model.selected}>
-          {connected ? (
-            <>
-              <MenuBarExtra.Item
-                title="Extend"
-                icon={Icon.AppWindowGrid2x2}
-                onAction={() =>
-                  runAction(() => setMode(model.selected, "extend"), "Sidecar extended", "Could not extend")
-                }
-              />
-              <MenuBarExtra.Item
-                title="Mirror"
-                icon={Icon.Duplicate}
-                onAction={() =>
-                  runAction(() => setMode(model.selected, "mirror"), "Sidecar mirrored", "Could not mirror")
-                }
-              />
-              <MenuBarExtra.Item
-                title="Disconnect"
-                icon={Icon.MinusCircle}
-                onAction={() =>
-                  runAction(
-                    () => disconnectDevice(model.selected),
-                    "Sidecar disconnected",
-                    "Could not disconnect Sidecar",
-                  )
-                }
-              />
-            </>
-          ) : (
-            <MenuBarExtra.Item
-              title="Connect"
-              icon={Icon.Monitor}
-              onAction={() =>
-                runAction(
-                  () => connectDevice(model.selected),
-                  "Sidecar connected",
-                  "Could not connect Sidecar",
-                )
-              }
-            />
-          )}
-        </MenuBarExtra.Section>
+        <DeviceSection selected={model.selected} connected={connected} />
       )}
 
       {model !== null && model.devices.length > 1 && (
-        <MenuBarExtra.Section title="Devices">
-          {model.devices.map((device) => (
-            <MenuBarExtra.Item
-              key={device.uuid}
-              title={device.name}
-              icon={device.name === model.selected ? Icon.Checkmark : Icon.Circle}
-              onAction={() =>
-                runAction(() => connectDevice(device.name), "Sidecar connected", "Could not connect Sidecar")
-              }
-            />
-          ))}
-        </MenuBarExtra.Section>
+        <DevicesSection devices={model.devices} selected={model.selected} />
       )}
 
-      {model !== null && connected && model.canReconnectVirtual && (
-        <MenuBarExtra.Section>
-          <MenuBarExtra.Item
-            title="Fix Mirroring"
-            icon={Icon.ArrowClockwise}
-            tooltip="Fix an iPad that is mirroring your main screen (Sidecar's own mirror mode)"
-            onAction={() =>
-              runAction(
-                () => reconnectVirtualScreens(getBetterDisplayCliPath()),
-                "Mirroring fixed",
-                "Could not fix mirroring",
-              )
-            }
-          />
-        </MenuBarExtra.Section>
-      )}
+      {model !== null && connected && model.canReconnectVirtual && <FixMirroringSection />}
 
       <MenuBarExtra.Section>
         <MenuBarExtra.Item title="Settings…" icon={Icon.Gear} onAction={openExtensionPreferences} />

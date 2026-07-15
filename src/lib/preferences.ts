@@ -157,8 +157,8 @@ export function betterDisplayAvailable(): boolean {
  */
 export function getBackend(): SidecarBackend {
   const prefs = getPreferenceValues<Preferences>();
-  const native = () => createNativeBackend();
-  const betterDisplay = () => createBetterDisplayBackend(getBetterDisplayCliPath());
+  const native = (): SidecarBackend => createNativeBackend();
+  const betterDisplay = (): SidecarBackend => createBetterDisplayBackend(getBetterDisplayCliPath());
 
   if (prefs.backend === "native") {
     return native();

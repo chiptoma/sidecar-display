@@ -1,3 +1,6 @@
+# Build artifacts only. Package.resolved IS committed: this is an executable
+# package, so the resolved dependency versions should be reproducible (and the
+# CI cache key hashes it).
 .build/
 .swiftpm/
-Package.resolved
+.raycast-swift-build/
