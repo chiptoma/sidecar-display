@@ -14,13 +14,8 @@ import { getPreferenceValues, Icon, MenuBarExtra, openExtensionPreferences, show
 import { useEffect, useState } from "react";
 
 import { reportError } from "./lib/feedback";
-import {
-  betterDisplayAvailable,
-  buildConfig,
-  getBackend,
-  getBetterDisplayCliPath,
-  shouldFixMirrorAfterConnect,
-} from "./lib/preferences";
+import { fixMirrorAfterFreshConnect } from "./lib/mirrorfix";
+import { betterDisplayAvailable, buildConfig, getBackend, getBetterDisplayCliPath } from "./lib/preferences";
 import { connectSidecar, disconnectSidecar, ensureDisplayMode, isConnected } from "./lib/sidecar";
 import { loadSelectedDevice, recordIntent, saveSelectedDevice } from "./lib/state";
 import { reconnectVirtualScreens } from "./lib/virtualscreens";
@@ -59,9 +54,7 @@ async function connectDevice(name: string): Promise<void> {
   await saveSelectedDevice(name);
   await recordIntent("connected");
   const outcome = await connectSidecar(getBackend(), buildConfig(name));
-  if (shouldFixMirrorAfterConnect() && outcome.linkEstablished === true) {
-    await reconnectVirtualScreens(getBetterDisplayCliPath());
-  }
+  await fixMirrorAfterFreshConnect(outcome);
 }
 
 /**

@@ -88,7 +88,7 @@
       "required": false,
       "title": "Fix Mirroring",
       "label": "Fix mirroring on a fresh connect",
-      "description": "Reconnects the main virtual screen only when the iPad newly attaches (not when re-running connect on an already-connected iPad), to clear macOS Sidecar's own mirror mode. That mirror mode is invisible to the display APIs, so this cannot detect it directly — it fires on every fresh connect, and briefly reshuffles the desktop. Requires BetterDisplay; ignored without it. Turn off to trigger it manually with the Fix Mirroring command.",
+      "description": "Reconnects the main virtual screen whenever the iPad newly attaches — through Connect, the menu bar, or a background auto-reconnect after sleep — but not when re-running connect on an already-connected iPad, to clear macOS Sidecar's own mirror mode. That mirror mode is invisible to the display APIs, so this cannot detect it directly — it fires on every fresh connect, and briefly reshuffles the desktop. Requires BetterDisplay; ignored without it. Turn off to trigger it manually with the Fix Mirroring command.",
       "default": true
     },
     {

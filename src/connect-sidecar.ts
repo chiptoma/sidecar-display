@@ -6,15 +6,10 @@
 import { showHUD, showToast, Toast } from "@raycast/api";
 
 import { describeOutcome, reportError } from "./lib/feedback";
-import {
-  getBackend,
-  getBetterDisplayCliPath,
-  loadConfig,
-  shouldFixMirrorAfterConnect,
-} from "./lib/preferences";
+import { fixMirrorAfterFreshConnect } from "./lib/mirrorfix";
+import { getBackend, loadConfig } from "./lib/preferences";
 import { connectSidecar } from "./lib/sidecar";
 import { recordIntent } from "./lib/state";
-import { reconnectVirtualScreens } from "./lib/virtualscreens";
 
 /**
  * Connects the iPad over Sidecar, then forces extend or mirror.
@@ -34,17 +29,13 @@ export default async function command(): Promise<void> {
     await recordIntent("connected");
     const outcome = await connectSidecar(backend, config);
 
-    // Only fix mirroring on a genuine fresh connect — not when re-running the
-    // command on an already-connected iPad — so it never reshuffles needlessly.
     // The connect already succeeded here, so a failing fix is reported on its
     // own rather than as a connect failure.
-    if (shouldFixMirrorAfterConnect() && outcome.linkEstablished === true) {
-      try {
-        await reconnectVirtualScreens(getBetterDisplayCliPath());
-      } catch (fixError) {
-        await reportError(fixError, "Connected, but could not fix mirroring");
-        return;
-      }
+    try {
+      await fixMirrorAfterFreshConnect(outcome);
+    } catch (fixError) {
+      await reportError(fixError, "Connected, but could not fix mirroring");
+      return;
     }
 
     await showHUD(describeOutcome(config, outcome));

@@ -153,7 +153,7 @@ If your main display is *not* itself a virtual screen (so there is no UUID to ta
 Because Sidecar's mirror mode is undetectable (see above), the extension can't fire it only "when mirrored." Instead:
 
 - The **Fix Mirroring** command and the menu-bar action run it on demand.
-- The **Fix Mirroring on fresh connect** preference (on by default) runs it once per *fresh* connect — when the iPad newly attaches, not when you re-run Connect on an already-connected iPad. This matches the common case where the iPad mirrors every time it attaches. If yours only sometimes mirrors, turn the preference off and use the manual command when you need it.
+- The **Fix Mirroring on fresh connect** preference (on by default) runs it once per *fresh* connect — whenever the iPad newly attaches, whether through Connect, the menu bar, or a background auto-reconnect after sleep, but not when you re-run Connect on an already-connected iPad. This matches the common case where the iPad mirrors every time it attaches. If yours only sometimes mirrors, turn the preference off and use the manual command when you need it.
 
 Its "always reconnect even if the disconnect is rejected" guarantee is covered by a [unit test](#development) so the screen can never be left down.
 
@@ -205,6 +205,7 @@ sidecar-display/
 │       ├── sidecar.ts              # orchestration: connect / disconnect / converge-and-hold
 │       ├── keepalive.ts            # pure keep-alive decision state machine
 │       ├── virtualscreens.ts       # the mechanism behind Fix Mirroring
+│       ├── mirrorfix.ts            # shared "fix after fresh connect" guard
 │       ├── preferences.ts          # Raycast preferences -> SidecarConfig; engine selection
 │       ├── state.ts                # the only module touching LocalStorage
 │       └── feedback.ts             # HUD / toast text from a result

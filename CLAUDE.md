@@ -33,6 +33,10 @@ BetterDisplay (`betterdisplaycli`) and a native Swift helper (`swift/`).
   behind the Fix Mirroring command (feature name vs mechanism name is deliberate).
   Always via `betterdisplaycli` regardless of engine, since the mirror is a
   BetterDisplay virtual-screen artifact.
+- `src/lib/mirrorfix.ts` — `fixMirrorAfterFreshConnect(outcome)`, the single guard
+  ("opt-in on + BetterDisplay present + `linkEstablished`") shared by every path
+  that brings the link up, so Connect, the menu bar, and auto-reconnect cannot
+  drift. The mechanism stays in `virtualscreens.ts`; this is only the gate.
 - `src/lib/state.ts` — the only module that touches `LocalStorage`.
 - `src/lib/preferences.ts` — maps Raycast's generated `Preferences` type into a
   `SidecarConfig`. Never hand-declare the preference shape; `ray build` generates
@@ -63,7 +67,8 @@ enforced on every path and proven by `test/orchestration.test.ts` plus
   screens) when main is not itself one, NEVER touches a physical display, and is
   guaranteed to reconnect (a rejected disconnect is tolerated; the reconnect
   always runs). Reached only from the Fix Mirroring command or the
-  `fixMirrorAfterConnect` opt-in — never from inside converge.
+  `fixMirrorAfterConnect` opt-in (`mirrorfix.ts`, shared by Connect, the menu bar,
+  and auto-reconnect) — never from inside converge.
 - **Never write for an absent display.** Mode writes happen only when `readMirror`
   is non-null. `get --sidecarList` lists paired-but-maybe-absent devices, so a
   resolved name is not proof of reachability.

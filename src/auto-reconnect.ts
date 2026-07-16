@@ -14,6 +14,7 @@ import { environment, LaunchType, showHUD } from "@raycast/api";
 
 import { reportError } from "./lib/feedback";
 import { decideKeepAlive } from "./lib/keepalive";
+import { fixMirrorAfterFreshConnect } from "./lib/mirrorfix";
 import { getBackend, loadConfig, readKeepAliveTuning } from "./lib/preferences";
 import { connectSidecar, isConnected } from "./lib/sidecar";
 import { loadKeepAliveState, recordIntent, saveKeepAliveState } from "./lib/state";
@@ -45,7 +46,11 @@ export default async function command(): Promise<void> {
     await saveKeepAliveState(decision.nextState);
 
     if (decision.action === "reconnect") {
-      await connectSidecar(backend, config);
+      const outcome = await connectSidecar(backend, config);
+      // A background reconnect brings the link up in Sidecar's mirror mode just
+      // like a manual connect, so clear it here too — otherwise waking the Mac
+      // leaves the iPad mirroring until the next manual Fix Mirroring.
+      await fixMirrorAfterFreshConnect(outcome);
       if (environment.launchType === LaunchType.UserInitiated) {
         await showHUD("Sidecar reconnected");
       }
