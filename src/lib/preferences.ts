@@ -30,20 +30,6 @@ const MAX_TIMEOUT_SECONDS = 60;
 const DEFAULT_TIMEOUT_SECONDS = 6;
 
 /**
- * Clamps the configured settle timeout into a sane range.
- *
- * @param value - Raw preference text, possibly empty or non-numeric.
- * @returns Timeout in milliseconds.
- */
-function parseTimeoutMs(value: string): number {
-  const seconds = Number.parseFloat(value.trim());
-  if (!Number.isFinite(seconds)) {
-    return DEFAULT_TIMEOUT_SECONDS * 1_000;
-  }
-  return Math.min(Math.max(seconds, MIN_TIMEOUT_SECONDS), MAX_TIMEOUT_SECONDS) * 1_000;
-}
-
-/**
  * Parses a clamped integer preference, falling back when unset or invalid.
  *
  * @param value - Raw preference text.
@@ -109,7 +95,12 @@ export function readTuning(): Tuning {
   const prefs = getPreferenceValues<Preferences>();
   return {
     mode: prefs.displayMode,
-    settleTimeoutMs: parseTimeoutMs(prefs.settleTimeoutSeconds),
+    settleTimeoutMs: parseSecondsMs(
+      prefs.settleTimeoutSeconds,
+      DEFAULT_TIMEOUT_SECONDS,
+      MIN_TIMEOUT_SECONDS,
+      MAX_TIMEOUT_SECONDS,
+    ),
   };
 }
 
@@ -177,6 +168,20 @@ export function getBackend(): SidecarBackend {
  */
 export function shouldFixMirrorAfterConnect(): boolean {
   return getPreferenceValues<Preferences>().fixMirrorAfterConnect === true && betterDisplayAvailable();
+}
+
+/**
+ * The default auto-reconnect switch from preferences.
+ *
+ * @returns True when the preference is on (its own default).
+ *
+ * NOTE: This is only the default; the menu-bar toggle overrides it once used
+ *   (see effectiveAutoReconnect). Gates only automatic ticks — a manual run of
+ *   the command still reconnects — and is independent of Raycast's own
+ *   background-refresh toggle.
+ */
+export function autoReconnectPreference(): boolean {
+  return getPreferenceValues<Preferences>().enableAutoReconnect === true;
 }
 
 /**

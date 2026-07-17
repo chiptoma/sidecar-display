@@ -118,6 +118,15 @@
       "placeholder": "Auto-detect"
     },
     {
+      "name": "enableAutoReconnect",
+      "type": "checkbox",
+      "required": false,
+      "title": "Auto-Reconnect",
+      "label": "Reconnect the iPad automatically after it drops",
+      "description": "Default for whether the background command restores a link that dropped on its own (e.g. waking from sleep), backing off over time and never chasing a deliberate disconnect. This is only the default: the menu-bar Auto-Reconnect toggle overrides it once used. Turn off to stop automatic reconnects — running the Auto-Reconnect Sidecar command by hand still reconnects. Automatic reconnects also require Raycast's Background Refresh to be enabled on that command.",
+      "default": true
+    },
+    {
       "name": "fastReconnectAttempts",
       "type": "textfield",
       "required": false,
@@ -195,7 +204,7 @@
     "lint": "ray lint",
     "lint:fix": "ray lint --fix",
     "test": "npm run test:unit",
-    "test:unit": "npm run build:test && node --test .test-build/test/keepalive.test.js .test-build/test/orchestration.test.js .test-build/test/virtualscreens.test.js",
+    "test:unit": "npm run build:test && node --test .test-build/test/keepalive.test.js .test-build/test/messages.test.js .test-build/test/orchestration.test.js .test-build/test/virtualscreens.test.js",
     "test:safety": "npm run test:unit && node --test .test-build/test/safety.test.js",
     "test:hardware": "npm run test:safety && node --test .test-build/test/display-mode.test.js && node --test .test-build/test/lifecycle.test.js",
     "verify": "npm run lint && npm run build && npm run test:unit",

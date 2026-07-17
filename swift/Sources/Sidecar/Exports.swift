@@ -48,6 +48,8 @@ struct Status: Encodable {
 /// Detaches the Sidecar display from any mirror set (extend).
 @raycast func extend() throws {
   guard let id = sidecarDisplayID() else { throw HelperError("No Sidecar display is present") }
+  let main = CGMainDisplayID()
+  if main == id { throw HelperError("The Sidecar display is the main display; refusing to reconfigure it") }
   try setMirror(of: id, master: kCGNullDirectDisplay)
 }
 

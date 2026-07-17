@@ -5,7 +5,8 @@
 
 import { showHUD, showToast, Toast } from "@raycast/api";
 
-import { describeOutcome, reportError } from "./lib/feedback";
+import { reportError } from "./lib/feedback";
+import { describeOutcome } from "./lib/messages";
 import { fixMirrorAfterFreshConnect } from "./lib/mirrorfix";
 import { getBackend, loadConfig } from "./lib/preferences";
 import { connectSidecar } from "./lib/sidecar";

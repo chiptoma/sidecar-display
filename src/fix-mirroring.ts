@@ -6,6 +6,7 @@
 import { showHUD, showToast, Toast } from "@raycast/api";
 
 import { reportError } from "./lib/feedback";
+import { mirroringFixedMessage } from "./lib/messages";
 import { betterDisplayAvailable, getBetterDisplayCliPath } from "./lib/preferences";
 import { reconnectVirtualScreens } from "./lib/virtualscreens";
 
@@ -30,7 +31,7 @@ export default async function command(): Promise<void> {
   try {
     await showToast({ style: Toast.Style.Animated, title: "Fixing mirroring…" });
     await reconnectVirtualScreens(getBetterDisplayCliPath());
-    await showHUD("Mirroring fixed");
+    await showHUD(mirroringFixedMessage());
   } catch (error) {
     await reportError(error, "Could not fix mirroring");
   }

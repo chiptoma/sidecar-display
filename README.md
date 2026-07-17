@@ -49,7 +49,7 @@ This extension attaches Sidecar **programmatically**, which extends by default �
 
 ### From the Raycast Store
 
-> Coming soon — pending review.
+Not yet published to the Raycast Store. Install from source below.
 
 ### From source (local)
 
@@ -77,7 +77,7 @@ npm run dev
 | **Disconnect Sidecar** | Detaches the iPad. Idempotent. |
 | **Auto-Reconnect Sidecar** | Background command that restores a dropped link. Run it by hand to reconnect now. See [keep-alive](#auto-reconnect-keep-alive). |
 | **Fix Mirroring** | Clears macOS Sidecar's own mirror mode when the iPad connects showing a copy of your main screen. Needs BetterDisplay. |
-| **Sidecar Status** | Menu-bar item: device name, connection state, and connect / disconnect / extend / mirror actions plus a device picker. |
+| **Sidecar Status** | Menu-bar item: device name, connection state, connect / disconnect / extend / mirror actions, an Auto-Reconnect toggle, plus a device picker. |
 
 Bind Connect and Disconnect to hotkeys in Raycast, or drive everything from the menu bar:
 
@@ -94,6 +94,7 @@ Bind Connect and Disconnect to hotkeys in Raycast, or drive everything from the 
 | Fix Mirroring | **on** | *Fix mirroring on a fresh connect.* Reconnects the main virtual screen automatically when the iPad newly attaches, to clear Sidecar's mirror mode. Briefly reshuffles the desktop. Requires BetterDisplay; ignored without it. |
 | Display Mode | `Extend` | Where the iPad should end up: extending, or folded into the main display's mirror set. |
 | iPad Name | *(empty)* | Leave empty to auto-detect. Set it only to pin one when you have more than one Sidecar device. |
+| Auto-Reconnect | **on** | *Default* for reconnecting the iPad automatically after it drops. The menu-bar **Auto-Reconnect** toggle overrides this once used. Off stops all automatic reconnects; you can still reconnect by hand. Also needs Background Refresh enabled on the command. |
 | Fast Reconnect Attempts | `3` | Quick reconnect attempts after a drop before slowing to the heartbeat. |
 | Backoff Base (seconds) | `15` | Initial wait between fast attempts; doubles each try up to the cap. |
 | Backoff Cap (seconds) | `60` | Longest wait the doubling backoff reaches. Clamped to at least the base. |
@@ -159,10 +160,13 @@ Its "always reconnect even if the disconnect is rejected" guarantee is covered b
 
 ### Auto-reconnect (keep-alive)
 
-Enable **Background Refresh** on the *Auto-Reconnect Sidecar* command (in its Raycast command settings) and it restores the link after it drops — for example when the Mac wakes from sleep or wifi hiccups. It's deliberately conservative, so it never nags, but it never abandons a link you want either:
+Two switches gate it: the **Auto-Reconnect** switch (on by default) and Raycast's **Background Refresh** on the *Auto-Reconnect Sidecar* command (in its Raycast command settings). With both on, it restores the link after it drops — for example when the Mac wakes from sleep or wifi hiccups. Flip the switch off to stop all automatic reconnects while keeping manual connect and the "reconnect now" command.
 
-- It reconnects **only** when you asked for the iPad to be connected (via Connect or the menu bar) and the link then dropped **on its own**.
+The switch lives in two places: the **Auto-Reconnect** preference sets the default, and the **Auto-Reconnect** item in the *Sidecar Status* menu bar is a one-click toggle that overrides the preference from then on. It's deliberately conservative, so it never nags, but it never abandons a link you want either:
+
+- It reconnects **only** when auto-reconnect is enabled, you asked for the iPad to be connected (via Connect or the menu bar), and the link then dropped **on its own**.
 - A **deliberate disconnect** stops it — it will not fight you.
+- Running the command **by hand** reconnects now even with auto-reconnect off (preference or menu toggle) — a manual run is an explicit request, not automatic behaviour.
 - On a drop it makes a burst of quick attempts with growing backoff (the *Fast Reconnect Attempts* preference), then slows to an occasional heartbeat retry. It does **not** give up permanently.
 - **Waking the Mac re-arms it immediately.** There is no on-wake event for extensions, so a long gap between background ticks is read as "the Mac slept," and the next tick reconnects at once rather than waiting out a backoff.
 

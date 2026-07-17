@@ -33,6 +33,11 @@ export interface SidecarConfig {
 
 /** What the display-mode step did, or why it safely declined to act. */
 export interface ModeOutcome {
+  /**
+   * Whether a mode write was issued. A deliberate test-facing observable: it is
+   * how the hardware suites assert write-minimisation (they cannot see the mock's
+   * call log), so it stays even though no production path branches on it.
+   */
   readonly changed: boolean;
   readonly settled: boolean;
   readonly skippedReason?: string;
@@ -133,7 +138,7 @@ export async function ensureDisplayMode(
         return {
           changed,
           settled: false,
-          skippedReason: "the iPad is the main display, so its mode was left as-is",
+          skippedReason: "it's the main display; mode left as-is",
         };
       }
 

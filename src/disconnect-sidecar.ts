@@ -6,6 +6,7 @@
 import { showHUD, showToast, Toast } from "@raycast/api";
 
 import { reportError } from "./lib/feedback";
+import { disconnectedMessage } from "./lib/messages";
 import { getBackend, loadConfig } from "./lib/preferences";
 import { disconnectSidecar } from "./lib/sidecar";
 import { recordIntent } from "./lib/state";
@@ -23,7 +24,7 @@ export default async function command(): Promise<void> {
 
     await recordIntent("disconnected");
     await disconnectSidecar(backend, config);
-    await showHUD("Sidecar disconnected");
+    await showHUD(disconnectedMessage(config.ipadName));
   } catch (error) {
     await reportError(error, "Could not disconnect Sidecar");
   }

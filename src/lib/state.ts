@@ -15,6 +15,7 @@ import type { KeepAliveState, LinkIntent } from "./keepalive";
 
 const KEEP_ALIVE_KEY = "keepAliveState";
 const DEVICE_KEY = "selectedDeviceName";
+const AUTO_RECONNECT_KEY = "autoReconnectOverride";
 
 /**
  * Reads the persisted keep-alive state, falling back to the initial state.
@@ -59,6 +60,32 @@ export async function saveKeepAliveState(state: KeepAliveState): Promise<void> {
  */
 export async function recordIntent(intent: LinkIntent): Promise<void> {
   await saveKeepAliveState(stateForIntent(intent));
+}
+
+/**
+ * Reads the menu-bar auto-reconnect override, if the user has set one.
+ *
+ * @returns True/false when the menu toggle has been used, or null when it never
+ *   has (so the preference default applies).
+ */
+export async function loadAutoReconnectOverride(): Promise<boolean | null> {
+  const raw = await LocalStorage.getItem<string>(AUTO_RECONNECT_KEY);
+  if (raw === "true") {
+    return true;
+  }
+  if (raw === "false") {
+    return false;
+  }
+  return null;
+}
+
+/**
+ * Persists the menu-bar auto-reconnect override.
+ *
+ * @param enabled - The switch state the user chose from the menu bar.
+ */
+export async function saveAutoReconnectOverride(enabled: boolean): Promise<void> {
+  await LocalStorage.setItem(AUTO_RECONNECT_KEY, enabled ? "true" : "false");
 }
 
 /**

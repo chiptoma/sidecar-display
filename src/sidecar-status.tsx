@@ -10,14 +10,42 @@
 //   explicit Fix Mirroring action cycles a display (the main virtual screen).
 // =============================================================================
 
-import { getPreferenceValues, Icon, MenuBarExtra, openExtensionPreferences, showHUD } from "@raycast/api";
+import {
+  Color,
+  getPreferenceValues,
+  Icon,
+  MenuBarExtra,
+  openExtensionPreferences,
+  showHUD,
+} from "@raycast/api";
 import { useEffect, useState } from "react";
 
 import { reportError } from "./lib/feedback";
+import { effectiveAutoReconnect } from "./lib/keepalive";
+import {
+  autoReconnectLabel,
+  autoReconnectMessage,
+  connectedMessage,
+  describeModeSwitch,
+  disconnectedMessage,
+  mirroringFixedMessage,
+} from "./lib/messages";
 import { fixMirrorAfterFreshConnect } from "./lib/mirrorfix";
-import { betterDisplayAvailable, buildConfig, getBackend, getBetterDisplayCliPath } from "./lib/preferences";
+import {
+  autoReconnectPreference,
+  betterDisplayAvailable,
+  buildConfig,
+  getBackend,
+  getBetterDisplayCliPath,
+} from "./lib/preferences";
 import { connectSidecar, disconnectSidecar, ensureDisplayMode, isConnected } from "./lib/sidecar";
-import { loadSelectedDevice, recordIntent, saveSelectedDevice } from "./lib/state";
+import {
+  loadAutoReconnectOverride,
+  loadSelectedDevice,
+  recordIntent,
+  saveAutoReconnectOverride,
+  saveSelectedDevice,
+} from "./lib/state";
 import { reconnectVirtualScreens } from "./lib/virtualscreens";
 
 import type { DisplayMode, SidecarDevice } from "./lib/backend";
@@ -28,13 +56,15 @@ interface StatusModel {
   readonly selected: string;
   readonly connected: boolean;
   readonly canReconnectVirtual: boolean;
+  readonly autoReconnectOn: boolean;
 }
 
 /**
  * Gathers the current Sidecar picture for the menu.
  *
- * @returns Paired devices, the selected device, whether it is connected, and
- *   whether the virtual-screen reconnect is available (BetterDisplay present).
+ * @returns Paired devices, the selected device, whether it is connected, whether
+ *   the virtual-screen reconnect is available (BetterDisplay present), and the
+ *   effective auto-reconnect state.
  */
 async function loadStatus(): Promise<StatusModel> {
   const backend = getBackend();
@@ -42,7 +72,11 @@ async function loadStatus(): Promise<StatusModel> {
   const pinned = await loadSelectedDevice();
   const selected = pinned !== "" ? pinned : (devices[0]?.name ?? "");
   const connected = selected !== "" && (await isConnected(backend, buildConfig(selected)));
-  return { devices, selected, connected, canReconnectVirtual: betterDisplayAvailable() };
+  const autoReconnectOn = effectiveAutoReconnect(
+    await loadAutoReconnectOverride(),
+    autoReconnectPreference(),
+  );
+  return { devices, selected, connected, canReconnectVirtual: betterDisplayAvailable(), autoReconnectOn };
 }
 
 /**
@@ -72,26 +106,55 @@ async function disconnectDevice(name: string): Promise<void> {
  *
  * @param name - Device to reconfigure.
  * @param mode - Desired display mode.
+ * @returns The HUD line describing what actually happened (settled, safely
+ *   skipped, or unsettled) — never a blanket success.
  */
-async function setMode(name: string, mode: DisplayMode): Promise<void> {
-  await ensureDisplayMode(getBackend(), buildConfig(name, { mode }));
+async function setMode(name: string, mode: DisplayMode): Promise<string> {
+  const config = buildConfig(name, { mode });
+  const outcome = await ensureDisplayMode(getBackend(), config);
+  return describeModeSwitch(config, outcome);
+}
+
+/**
+ * Flips the auto-reconnect override and reports the new state.
+ *
+ * @param currentlyOn - The state shown in the menu when it was clicked.
+ * @returns The HUD line for the new state.
+ *
+ * NOTE: Writes an override that takes precedence over the preference from here
+ *   on (see effectiveAutoReconnect), so the menu is a one-click switch.
+ */
+async function toggleAutoReconnect(currentlyOn: boolean): Promise<string> {
+  const next = !currentlyOn;
+  await saveAutoReconnectOverride(next);
+  return autoReconnectMessage(next);
 }
 
 /**
  * Runs a menu action, surfacing success as a HUD and failure as a toast.
  *
- * @param action     - The async work to perform.
- * @param successHUD - Message shown when the action completes.
+ * @param action     - The async work to perform; a returned string is shown as
+ *   the HUD verbatim, so an action can report a safe-skip or unsettled result.
  * @param errorTitle - Toast headline shown when the action throws.
+ * @param successHUD - HUD for actions that return void; omit when the action
+ *   always supplies its own message.
  *
  * NOTE: Menu-bar actions have no ambient error surface, so without this a failed
  *   click would be silent and leak an unhandled rejection. This mirrors the
  *   try/catch + feedback every command entry point uses.
  */
-async function runAction(action: () => Promise<void>, successHUD: string, errorTitle: string): Promise<void> {
+async function runAction(
+  action: () => Promise<string | void>,
+  errorTitle: string,
+  successHUD?: string,
+): Promise<void> {
   try {
-    await action();
-    await showHUD(successHUD);
+    const message = await action();
+    if (typeof message === "string") {
+      await showHUD(message);
+    } else if (successHUD !== undefined) {
+      await showHUD(successHUD);
+    }
   } catch (error) {
     await reportError(error, errorTitle);
   }
@@ -116,16 +179,12 @@ function DeviceSection({ selected, connected }: { selected: string; connected: b
           <MenuBarExtra.Item
             title="Extend"
             icon={Icon.AppWindowGrid2x2}
-            onAction={() =>
-              runAction(() => setMode(selected, "extend"), "Sidecar extended", "Could not extend")
-            }
+            onAction={() => runAction(() => setMode(selected, "extend"), `Could not extend ${selected}`)}
           />
           <MenuBarExtra.Item
             title="Mirror"
             icon={Icon.Duplicate}
-            onAction={() =>
-              runAction(() => setMode(selected, "mirror"), "Sidecar mirrored", "Could not mirror")
-            }
+            onAction={() => runAction(() => setMode(selected, "mirror"), `Could not mirror ${selected}`)}
           />
           <MenuBarExtra.Item
             title="Disconnect"
@@ -133,8 +192,8 @@ function DeviceSection({ selected, connected }: { selected: string; connected: b
             onAction={() =>
               runAction(
                 () => disconnectDevice(selected),
-                "Sidecar disconnected",
-                "Could not disconnect Sidecar",
+                `Could not disconnect ${selected}`,
+                disconnectedMessage(selected),
               )
             }
           />
@@ -144,7 +203,11 @@ function DeviceSection({ selected, connected }: { selected: string; connected: b
           title="Connect"
           icon={Icon.Monitor}
           onAction={() =>
-            runAction(() => connectDevice(selected), "Sidecar connected", "Could not connect Sidecar")
+            runAction(
+              () => connectDevice(selected),
+              `Could not connect ${selected}`,
+              connectedMessage(selected),
+            )
           }
         />
       )}
@@ -174,7 +237,11 @@ function DevicesSection({
           title={device.name}
           icon={device.name === selected ? Icon.Checkmark : Icon.Circle}
           onAction={() =>
-            runAction(() => connectDevice(device.name), "Sidecar connected", "Could not connect Sidecar")
+            runAction(
+              () => connectDevice(device.name),
+              `Could not connect ${device.name}`,
+              connectedMessage(device.name),
+            )
           }
         />
       ))}
@@ -197,8 +264,8 @@ function FixMirroringSection(): React.JSX.Element {
         onAction={() =>
           runAction(
             () => reconnectVirtualScreens(getBetterDisplayCliPath()),
-            "Mirroring fixed",
             "Could not fix mirroring",
+            mirroringFixedMessage(),
           )
         }
       />
@@ -217,7 +284,15 @@ export default function Command(): React.JSX.Element {
   useEffect(() => {
     loadStatus()
       .then(setModel)
-      .catch(() => setModel({ devices: [], selected: "", connected: false, canReconnectVirtual: false }));
+      .catch(() =>
+        setModel({
+          devices: [],
+          selected: "",
+          connected: false,
+          canReconnectVirtual: false,
+          autoReconnectOn: false,
+        }),
+      );
   }, []);
 
   const connected = model?.connected ?? false;
@@ -225,8 +300,10 @@ export default function Command(): React.JSX.Element {
   // Default is icon-only (constant width, friendly to menu-bar managers like
   // Bartender). The optional title shows the device name when connected.
   const showName = getPreferenceValues<Preferences>().showDeviceName === true;
-  const icon = connected ? Icon.Monitor : Icon.MinusCircle;
-  const tooltip = connected ? `${device} — connected` : `${device} — disconnected`;
+  // Green when connected, neutral (default menu tint) when not — the persistent
+  // colour cue a HUD cannot carry.
+  const icon = connected ? { source: Icon.Monitor, tintColor: Color.Green } : Icon.MinusCircle;
+  const tooltip = connected ? `${device} - Connected` : `${device} - Disconnected`;
   const title = showName && connected ? device : undefined;
 
   return (
@@ -244,6 +321,15 @@ export default function Command(): React.JSX.Element {
       {model !== null && connected && model.canReconnectVirtual && <FixMirroringSection />}
 
       <MenuBarExtra.Section>
+        {model !== null && (
+          <MenuBarExtra.Item
+            title={autoReconnectLabel(model.autoReconnectOn)}
+            icon={model.autoReconnectOn ? { source: Icon.Circle, tintColor: Color.Green } : Icon.Circle}
+            onAction={() =>
+              runAction(() => toggleAutoReconnect(model.autoReconnectOn), "Could not change auto-reconnect")
+            }
+          />
+        )}
         <MenuBarExtra.Item title="Settings…" icon={Icon.Gear} onAction={openExtensionPreferences} />
       </MenuBarExtra.Section>
     </MenuBarExtra>

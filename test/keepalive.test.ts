@@ -10,7 +10,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { decideKeepAlive, INITIAL_STATE, stateForIntent } from "../src/lib/keepalive";
+import {
+  decideKeepAlive,
+  effectiveAutoReconnect,
+  INITIAL_STATE,
+  keepAliveEnabled,
+  stateForIntent,
+} from "../src/lib/keepalive";
 
 import type { KeepAliveDecision, KeepAliveState, KeepAliveTuning } from "../src/lib/keepalive";
 
@@ -34,14 +40,30 @@ function connectedState(overrides: Partial<KeepAliveState> = {}): KeepAliveState
   };
 }
 
-function decide(input: { isConnected: boolean; state: KeepAliveState }): KeepAliveDecision {
-  return decideKeepAlive({ ...TUNING, nowMs: NOW, ...input });
+function decide(input: {
+  isConnected: boolean;
+  state: KeepAliveState;
+  enabled?: boolean;
+}): KeepAliveDecision {
+  const { enabled = true, ...rest } = input;
+  return decideKeepAlive({ ...TUNING, nowMs: NOW, enabled, ...rest });
 }
 
 describe("keep-alive decisions", () => {
   it("does nothing when the user wants it disconnected", () => {
     const state = { ...connectedState(), intent: "disconnected" as const };
     assert.equal(decide({ isConnected: false, state }).action, "none");
+  });
+
+  it("does nothing when auto-reconnect is switched off, even for a wanted dropped link", () => {
+    const state = connectedState({ failedAttempts: 2 });
+    const d = decide({ isConnected: false, state, enabled: false });
+    assert.equal(d.action, "none");
+    // Records the tick (no false sleep-gap on re-enable) but leaves the rest of
+    // the state untouched — a disabled tick is inert, not a reset.
+    assert.equal(d.nextState.lastTickAtMs, NOW);
+    assert.equal(d.nextState.intent, "connected");
+    assert.equal(d.nextState.failedAttempts, 2);
   });
 
   it("does nothing and clears the counter when already connected", () => {
@@ -99,5 +121,37 @@ describe("intent", () => {
 
   it("starts disconnected on a fresh install", () => {
     assert.equal(INITIAL_STATE.intent, "disconnected");
+  });
+});
+
+describe("effectiveAutoReconnect", () => {
+  it("follows the preference when the menu toggle was never used", () => {
+    assert.equal(effectiveAutoReconnect(null, true), true);
+    assert.equal(effectiveAutoReconnect(null, false), false);
+  });
+
+  it("lets the menu-bar override win over the preference default", () => {
+    assert.equal(effectiveAutoReconnect(false, true), false);
+    assert.equal(effectiveAutoReconnect(true, false), true);
+  });
+});
+
+describe("keepAliveEnabled", () => {
+  it("lets a manual run act for every override/preference combination", () => {
+    for (const override of [null, true, false] as const) {
+      for (const pref of [true, false] as const) {
+        assert.equal(keepAliveEnabled(true, override, pref), true, `manual, override=${override}, pref=${pref}`);
+      }
+    }
+  });
+
+  it("follows the preference on a background tick when the toggle was never used", () => {
+    assert.equal(keepAliveEnabled(false, null, true), true);
+    assert.equal(keepAliveEnabled(false, null, false), false);
+  });
+
+  it("lets the menu override win over the preference on a background tick", () => {
+    assert.equal(keepAliveEnabled(false, false, true), false, "override off beats pref on");
+    assert.equal(keepAliveEnabled(false, true, false), true, "override on beats pref off");
   });
 });

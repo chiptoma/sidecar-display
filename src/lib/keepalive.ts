@@ -37,6 +37,7 @@ export interface KeepAliveTuning {
 
 /** Everything a single decision needs: the tuning plus the live snapshot. */
 export interface KeepAliveInputs extends KeepAliveTuning {
+  readonly enabled: boolean;
   readonly isConnected: boolean;
   readonly nowMs: number;
   readonly state: KeepAliveState;
@@ -77,14 +78,18 @@ function waitFor(attempts: number, inputs: KeepAliveInputs): number {
  * @param inputs - Live link state, persisted state, and backoff tuning.
  * @returns The action to take and the next state.
  *
- * NOTE: A live link clears the counter. A long gap since the previous tick means
- *   the Mac slept, so the counter is re-armed and an attempt fires at once. A
- *   wanted-but-down link is otherwise chased on backoff, slowing to a heartbeat
- *   rather than ever stopping.
+ * NOTE: When disabled, every tick is a no-op. Otherwise: a live link clears the
+ *   counter; a long gap since the previous tick means the Mac slept, so the
+ *   counter is re-armed and an attempt fires at once; a wanted-but-down link is
+ *   chased on backoff, slowing to a heartbeat rather than ever stopping.
  */
 export function decideKeepAlive(inputs: KeepAliveInputs): KeepAliveDecision {
-  const { isConnected, nowMs, state, wakeGapMs } = inputs;
+  const { enabled, isConnected, nowMs, state, wakeGapMs } = inputs;
   const ticked: KeepAliveState = { ...state, lastTickAtMs: nowMs };
+
+  if (!enabled) {
+    return { action: "none", nextState: ticked };
+  }
 
   if (isConnected) {
     return { action: "none", nextState: { ...ticked, failedAttempts: 0 } };
@@ -106,6 +111,33 @@ export function decideKeepAlive(inputs: KeepAliveInputs): KeepAliveDecision {
     action: "reconnect",
     nextState: { ...ticked, failedAttempts: attempts + 1, lastAttemptAtMs: nowMs },
   };
+}
+
+/**
+ * Resolves the effective auto-reconnect switch from its two inputs.
+ *
+ * @param override    - The menu-bar toggle, or null when never used.
+ * @param prefDefault - The preference, used as the default.
+ * @returns The menu-bar override when set, otherwise the preference. One switch
+ *   with defined precedence, not two competing ones.
+ */
+export function effectiveAutoReconnect(override: boolean | null, prefDefault: boolean): boolean {
+  return override ?? prefDefault;
+}
+
+/**
+ * Resolves whether a keep-alive tick may reconnect, from every input at once.
+ *
+ * @param isManual    - True when the user ran the command by hand.
+ * @param override    - The menu-bar toggle, or null when never used.
+ * @param prefDefault - The auto-reconnect preference (the default).
+ * @returns True when the tick may reconnect: always for a manual run (an
+ *   explicit "reconnect now"), otherwise the effective switch (override, else
+ *   preference). The single composition the command wires straight through, so
+ *   the whole enable/override/manual policy is proven by one unit test.
+ */
+export function keepAliveEnabled(isManual: boolean, override: boolean | null, prefDefault: boolean): boolean {
+  return isManual || effectiveAutoReconnect(override, prefDefault);
 }
 
 /**

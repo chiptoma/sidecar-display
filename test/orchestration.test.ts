@@ -31,6 +31,13 @@ interface MockState {
   /** null models "the display is not present". */
   mirror: boolean | null;
   ipadMain: boolean;
+  /**
+   * When set, readMirror yields these in order (then falls back to `mirror`).
+   * Models macOS reporting a transient mid-stream state before settling — the
+   * reason ensureDisplayMode holds across REQUIRED_STABLE_READS rather than
+   * trusting one confirming read.
+   */
+  mirrorReads: (boolean | null)[] | null;
 }
 
 function makeBackend(overrides: Partial<MockState> = {}): MockBackend {
@@ -40,6 +47,7 @@ function makeBackend(overrides: Partial<MockState> = {}): MockBackend {
     connected: true,
     mirror: false,
     ipadMain: false,
+    mirrorReads: null,
     ...overrides,
   };
 
@@ -51,7 +59,12 @@ function makeBackend(overrides: Partial<MockState> = {}): MockBackend {
       calls.push(`setConnected:${connected}`);
       s.connected = connected;
     },
-    readMirror: async () => s.mirror,
+    readMirror: async () => {
+      if (s.mirrorReads !== null && s.mirrorReads.length > 0) {
+        return s.mirrorReads.shift() ?? null;
+      }
+      return s.mirror;
+    },
     isIpadMain: async () => s.ipadMain,
     extend: async () => {
       calls.push("extend");
@@ -106,6 +119,23 @@ describe("ensureDisplayMode", () => {
     const b = makeBackend({ mirror: null });
     await assert.rejects(() => ensureDisplayMode(b, cfg("extend")));
     assert.deepEqual(b.calls, [], "an unreachable iPad must never reach a write");
+  });
+
+  it("re-extends after a mid-stream flip and only settles once it holds", async () => {
+    // Two correct reads, then macOS flips it back to mirrored, then it holds.
+    // A single confirming read must NOT be trusted as settled (would report
+    // settled at read 1 and never issue the corrective write).
+    const b = makeBackend({ mirrorReads: [false, false, true, false, false, false] });
+    const out = await ensureDisplayMode(b, cfg("extend"));
+    assert.equal(out.settled, true);
+    assert.deepEqual(b.calls, ["extend"], "must re-assert extend on the mid-stream disagreement");
+  });
+
+  it("re-mirrors after a mid-stream flip and only settles once it holds", async () => {
+    const b = makeBackend({ mirrorReads: [true, true, false, true, true, true] });
+    const out = await ensureDisplayMode(b, cfg("mirror"));
+    assert.equal(out.settled, true);
+    assert.deepEqual(b.calls, ["mirrorToMain"], "must re-assert mirror on the mid-stream disagreement");
   });
 });
 

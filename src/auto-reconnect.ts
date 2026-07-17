@@ -5,19 +5,21 @@
 // Context: Raycast runs this on a background interval (enable it in the command
 //   settings). There is no on-wake event, so "reconnect after sleep" happens on
 //   the next scheduled tick, within roughly one interval.
-// WARN: Reconnects only when the user wants the iPad connected and the link
-//   dropped by itself. A deliberate disconnect is never chased. It never writes
-//   the main display. All timing is configurable; see readKeepAliveTuning.
+// WARN: Reconnects only when auto-reconnect is enabled, the user wants the iPad
+//   connected, and the link dropped by itself. A deliberate disconnect is never
+//   chased. It never writes the main display. A manual run overrides the enable
+//   switch (reconnect now). All timing is configurable; see readKeepAliveTuning.
 // =============================================================================
 
 import { environment, LaunchType, showHUD } from "@raycast/api";
 
 import { reportError } from "./lib/feedback";
-import { decideKeepAlive } from "./lib/keepalive";
+import { decideKeepAlive, keepAliveEnabled } from "./lib/keepalive";
+import { alreadyConnectedMessage, reconnectedMessage } from "./lib/messages";
 import { fixMirrorAfterFreshConnect } from "./lib/mirrorfix";
-import { getBackend, loadConfig, readKeepAliveTuning } from "./lib/preferences";
+import { autoReconnectPreference, getBackend, loadConfig, readKeepAliveTuning } from "./lib/preferences";
 import { connectSidecar, isConnected } from "./lib/sidecar";
-import { loadKeepAliveState, recordIntent, saveKeepAliveState } from "./lib/state";
+import { loadAutoReconnectOverride, loadKeepAliveState, recordIntent, saveKeepAliveState } from "./lib/state";
 
 /**
  * One keep-alive tick: reconnect if the link dropped on its own.
@@ -28,7 +30,8 @@ import { loadKeepAliveState, recordIntent, saveKeepAliveState } from "./lib/stat
  */
 export default async function command(): Promise<void> {
   try {
-    if (environment.launchType === LaunchType.UserInitiated) {
+    const isManual = environment.launchType === LaunchType.UserInitiated;
+    if (isManual) {
       await recordIntent("connected");
     }
 
@@ -36,8 +39,11 @@ export default async function command(): Promise<void> {
     const config = await loadConfig(backend);
     const linkUp = await isConnected(backend, config);
 
+    const enabled = keepAliveEnabled(isManual, await loadAutoReconnectOverride(), autoReconnectPreference());
+
     const decision = decideKeepAlive({
       ...readKeepAliveTuning(),
+      enabled,
       isConnected: linkUp,
       nowMs: Date.now(),
       state: await loadKeepAliveState(),
@@ -51,9 +57,13 @@ export default async function command(): Promise<void> {
       // like a manual connect, so clear it here too — otherwise waking the Mac
       // leaves the iPad mirroring until the next manual Fix Mirroring.
       await fixMirrorAfterFreshConnect(outcome);
-      if (environment.launchType === LaunchType.UserInitiated) {
-        await showHUD("Sidecar reconnected");
+      if (isManual) {
+        await showHUD(reconnectedMessage(config.ipadName));
       }
+    } else if (isManual) {
+      // A manual run decides "none" only when the link is already up (the intent
+      // was just re-armed), so acknowledge rather than doing nothing silently.
+      await showHUD(alreadyConnectedMessage(config.ipadName));
     }
   } catch (error) {
     // A failed background attempt is expected when the iPad is genuinely gone;
