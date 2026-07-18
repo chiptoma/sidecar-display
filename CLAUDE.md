@@ -10,7 +10,9 @@ BetterDisplay (`betterdisplaycli`) and a native Swift helper (`swift/`).
 
 ## Human docs (do not duplicate here)
 
-- [README.md](./README.md) — what it does, how it works, the design decisions.
+- [README.md](./README.md) — what it does and how to use it.
+- [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) — how it works, the safety
+  invariants, the design decisions, and the project layout.
 - [CONTRIBUTING.md](./CONTRIBUTING.md) — conventions and code standards.
 - [docs/WORKFLOWS.md](./docs/WORKFLOWS.md) — clone/dev/test/CI/release runbook.
 
@@ -22,6 +24,9 @@ BetterDisplay (`betterdisplaycli`) and a native Swift helper (`swift/`).
 - `src/lib/betterdisplay.ts` — `createBetterDisplayBackend(cliPath)`, the engine
   over `betterdisplaycli`. Reads tolerate rejection (`Failed.` on stderr, exit 1)
   and return `null`; writes throw.
+- `src/lib/betterdisplaycli.ts` — the low-level `betterdisplaycli` exec primitive
+  (`writeCli`/`readCli`/`tryReadCli`) and identifier parser, shared by the
+  BetterDisplay engine and `virtualscreens.ts` so neither reinvents it.
 - `src/lib/native.ts` — `createNativeBackend()`, the engine over the `@raycast`
   Swift functions in `swift/`, imported as `swift:../../swift`. No BetterDisplay.
 - `src/lib/sidecar.ts` — display/link orchestration (`connectSidecar`,

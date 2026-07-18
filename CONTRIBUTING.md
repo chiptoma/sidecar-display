@@ -6,7 +6,7 @@ Conventions and standards for working on Sidecar Display.
   [docs/WORKFLOWS.md](./docs/WORKFLOWS.md) — start there if you are picking the
   project up cold.
 - **What it does and how it works** is in the [README](./README.md).
-- This file is the *how we write it* half: conventions, invariants, commits.
+- This file is the _how we write it_ half: conventions, invariants, commits.
 
 ## TL;DR
 
@@ -17,7 +17,7 @@ npm run lint && npm run build && npm run test:unit   # before every commit
 
 ## Architecture
 
-See the [README](./README.md#how-it-works) for the deep version. In short:
+See [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) for the deep version. In short:
 
 - **Command entry points** (`src/*.ts(x)`) are thin — they read preferences,
   call one orchestration function, and render feedback. No logic lives here.
@@ -42,7 +42,7 @@ scrambled every window and caused a logout.
 2. **The connect/disconnect/mode path never disconnects or power-cycles a
    display.** The only sanctioned `--connected=` cycle is the isolated **Fix
    Mirroring** feature (`virtualscreens.ts`): it targets the main virtual screen
-   by UUID, falls back to all *virtual* screens when main is not itself one,
+   by UUID, falls back to all _virtual_ screens when main is not itself one,
    never touches a physical display, and always reconnects (a rejected
    disconnect is tolerated, the reconnect still runs).
 3. **Never write for a display that isn't present.** Mode writes happen only when
@@ -70,10 +70,10 @@ If you touch `sidecar.ts` or `virtualscreens.ts`, run `test:unit` (and
 
 Two deliberate splits. Both are intentional; keep them straight:
 
-| User-facing | In code | Why |
-| --- | --- | --- |
-| **Engine** (the preference) | `backend` / `SidecarBackend` | "Engine" reads better in a settings pane; `backend` is the code abstraction. The preference *key* stays `backend` — it is internal and renaming it would orphan stored values. |
-| **Fix Mirroring** (the command) | `virtualscreens.ts` / `reconnectVirtualScreens` | The command is named for the problem it solves; the module is named for the mechanism it uses. |
+| User-facing                     | In code                                         | Why                                                                                                                                                                            |
+| ------------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Engine** (the preference)     | `backend` / `SidecarBackend`                    | "Engine" reads better in a settings pane; `backend` is the code abstraction. The preference _key_ stays `backend` — it is internal and renaming it would orphan stored values. |
+| **Fix Mirroring** (the command) | `virtualscreens.ts` / `reconnectVirtualScreens` | The command is named for the problem it solves; the module is named for the mechanism it uses.                                                                                 |
 
 A command's `name` and a preference's `name` are **stable identifiers** — users'
 hotkeys, aliases, and stored values bind to them. They are free to rename before
