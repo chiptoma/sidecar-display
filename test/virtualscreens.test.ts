@@ -70,8 +70,8 @@ async function runCase({
   return { log: existsSync(logPath) ? readFileSync(logPath, "utf8") : "", threw };
 }
 
-const VIRTUAL_MAIN = '{"UUID":"ABC-123","deviceType":"VirtualScreen"}';
-const PHYSICAL_MAIN = '{"UUID":"XYZ","deviceType":"Display"}';
+const VIRTUAL_MAIN = '{"UUID":"ABC-123","name":"Main Virtual Screen","deviceType":"VirtualScreen"}';
+const PHYSICAL_MAIN = '{"UUID":"XYZ","name":"Built-in Display","deviceType":"Display"}';
 
 after(() => {
   delete process.env.FAKE_GET_OUTPUT;
