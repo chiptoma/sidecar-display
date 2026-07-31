@@ -41,6 +41,18 @@ These can only be done once the extension is live on the Store.
       ~2 engine reads per converge tick (`readMirror` + `isIpadMain`); a single
       snapshot method would halve the CLI/Swift calls. Interface change; low
       priority. (Flagged as S3 in the smell scan.)
+- [x] **Confirm the presence probe against the real undock/sleep scenario.**
+      Confirmed 2026-07-31 at real distance: reports absent correctly. It also
+      surfaced that "away" has two shapes — radios off keeps the device listed
+      with bit 9 clear, while out-of-range drops it from the list entirely, which
+      made auto-detection throw and killed the whole tick. Fixed by remembering
+      the auto-detected name (`loadConfig`).
+- [ ] **Watch the probe across macOS updates and other hardware.** Bit 9 is
+      undocumented and confirmed only on macOS 26.6 with one iPad. Two symptoms
+      to watch for: banners piling up again (reads present when the iPad is gone)
+      or auto-reconnect never firing on return (stuck absent — the hourly recheck
+      caps the damage at one attempt/hour). Re-sample with a probe that dumps
+      `SidecarDevice.status` if either shows up.
 - [ ] **Auto-reconnect "reset to default" affordance.** The menu-bar toggle
       writes a LocalStorage override that supersedes the preference permanently
       once used. A menu item to clear the override (fall back to the preference)
