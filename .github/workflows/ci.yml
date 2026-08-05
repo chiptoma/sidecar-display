@@ -3,7 +3,7 @@
 # CI
 # Lint, type-check/build, and run the hardware-free unit tests on every push.
 # -----------------------------------------------------------------------------
-# NOTE: The safety and hardware suites need BetterDisplay (and an iPad) and
+# NOTE: The safety and hardware suites need `swift build` (and an iPad) and
 #   cannot run on hosted runners, so CI covers lint, build, and the pure logic
 #   only. Run `npm run test:hardware` locally before release.
 # NOTE: `build` compiles the Swift package via extensions-swift-tools, so this

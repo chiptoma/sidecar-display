@@ -16,7 +16,6 @@ labels: bug
 **Environment**
 
 - macOS version:
-- Engine (Automatic / BetterDisplay / Native):
 - BetterDisplay version (if used):
 - Is your main display a BetterDisplay virtual screen? (yes/no)
 - Sidecar device (iPad model):
