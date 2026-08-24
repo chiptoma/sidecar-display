@@ -41,7 +41,11 @@ This extension attaches Sidecar **programmatically**, which extends by default â
 
 ### From the Raycast Store
 
-Not yet published to the Raycast Store. Install from source below.
+**[Install from the Raycast Store](https://www.raycast.com/chiptoma/sidecar-display)** â€” or open
+[`raycast://extensions/chiptoma/sidecar-display`](raycast://extensions/chiptoma/sidecar-display)
+directly.
+
+No Xcode needed: the Store ships the extension already compiled.
 
 ### From source (local)
 

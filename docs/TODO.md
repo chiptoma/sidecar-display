@@ -3,11 +3,12 @@
 Outstanding work on Sidecar Display. Most of it is gated on the Raycast Store
 review; the rest is optional polish and ongoing maintenance.
 
-Status at time of writing (2026-08-05): submitted to the Store as
-[raycast/extensions#29572](https://github.com/raycast/extensions/pull/29572),
-open with all checks green. The PR carries `cd69d41` — the native-only rework and
-the transport policy — which is **3 commits past the `v1.0.0` tag (`7ebf564`)**,
-so the tag no longer marks what is under review.
+Status: **shipped**. [raycast/extensions#29572](https://github.com/raycast/extensions/pull/29572)
+was approved and merged on 2026-08-23 (merge commit `a3ef6fc`), and the extension
+is live at <https://www.raycast.com/chiptoma/sidecar-display>. The reviewer asked
+whether it should fold into the existing Sidecar extension; the separate-extension
+case was made on the grounds that the two use different mechanisms (SidecarCore
+directly vs AppleScript UI scripting) and was accepted.
 
 ---
 
@@ -15,16 +16,13 @@ so the tag no longer marks what is under review.
 
 These can only be done once the extension is live on the Store.
 
-- [ ] **Set the repo Homepage URL** to the Store listing:
-      `gh repo edit chiptoma/sidecar-display --homepage "https://www.raycast.com/chiptoma/sidecar-display"`
-- [ ] **Update the README "From the Raycast Store" section** — replace
-      "Not yet published…" with the real install: the listing link plus the
-      `raycast://extensions/chiptoma/sidecar-display` deep link.
+- [x] **Set the repo Homepage URL** to the Store listing. Done 2026-08-23.
+- [x] **Update the README "From the Raycast Store" section.** Done 2026-08-23.
 - [ ] **Re-cut `v1.0.0`** at the merged commit. The tag (`7ebf564`) is already 3
       commits behind what is under review, so this is now required rather than
       conditional. (Delete + retag; `release.yml` re-cuts the Release.)
 
-## 2. Before the reviewer arrives
+## 2. Follow-ups now that it has shipped
 
 - [ ] **Re-shoot `metadata/sidecar-display-3.png`** (and `media/preferences.png`).
       Both still show the removed **Engine** dropdown and the superseded extension
